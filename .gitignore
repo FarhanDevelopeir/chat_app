@@ -1,0 +1,35 @@
+# Node modules
+**/node_modules/
+
+# Environment files
+**/.env
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Next.js build output
+client/.next/
+client/out/
+
+# Vite or other build outputs (if used)
+dist/
+build/
+
+# Dependency lockfiles (if you prefer not to track them, optional)
+# **/package-lock.json
+
+# VS Code settings (optional)
+.vscode/
+
+# Temp files
+*.tmp
+*.swp
+
+# Other
+*.local
