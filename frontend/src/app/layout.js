@@ -13,7 +13,7 @@ export default function RootLayout({ children }) {
       <body>
         <SocketProvider>
           {children}
-          <ConnectionStatus />
+          {/* <ConnectionStatus /> */}
         </SocketProvider>
       </body>
     </html>
