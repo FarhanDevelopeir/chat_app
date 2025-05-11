@@ -334,7 +334,7 @@ export default function UsersList({ users, onSelectUser, selectedUser, setIsLogg
                             )
                           }
                         </p>
-                        
+                         
                         {user.unreadCount > 0 && (
                           <Badge variant="default" className="ml-auto bg-green-600 hover:bg-green-600">
                             {user.unreadCount}
