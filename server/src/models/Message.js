@@ -16,6 +16,18 @@ const MessageSchema = new mongoose.Schema({
   isRead: {
     type: Boolean,
     default: false
+  },
+  file: {
+    name: { type: String },
+    type: { type: String },
+    size: { type: Number },
+    url: { type: String }
+  },
+  audio: {
+    name: { type: String },
+    data: { type: String },  // Base64 encoded audio data
+    size: { type: Number },
+    duration: { type: Number }  // Optional: Duration in seconds
   }
 }, { timestamps: true });
 

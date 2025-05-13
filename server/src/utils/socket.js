@@ -155,14 +155,16 @@ const setupSocket = (server) => {
     // Handle new message
     socket.on('message:send', async (messageData) => {
       try {
-        const { sender, receiver, content } = messageData;
+        const { sender, receiver, content, file, audio } = messageData;
 
         // Save message to database
         const newMessage = new Message({
           sender,
           receiver,
           content,
-          isRead: false
+          isRead: false,
+          file: file || undefined,
+          audio: audio || undefined,
         });
 
         await newMessage.save();
@@ -200,7 +202,7 @@ const setupSocket = (server) => {
       console.log('Admin logged out:', adminIsOnline);
     })
 
-    socket.on('user:logout', async() => {
+    socket.on('user:logout', async () => {
       // Find the disconnected user and update their status
       for (const [username, data] of activeUsers.entries()) {
         if (data.socketId === socket.id) {
