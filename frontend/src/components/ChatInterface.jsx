@@ -8,45 +8,6 @@ import FileUpload from './FileUpload';
 import VoiceRecorder from './VoiceRecorder';
 import AudioMessage from './AudioMessage';
 
-// Updated MessageBubble component with WhatsApp styling
-// const MessageBubble = ({ message, isOwnMessage }) => {
-//   const formattedTime = new Date(message.createdAt).toLocaleTimeString([], {
-//     hour: '2-digit',
-//     minute: '2-digit'
-//   });
-
-//   const isFileMessage = message.file !== undefined;
-
-//   return (
-//     <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-2`}>
-//       <div
-//         className={`px-3 py-2 rounded-lg max-w-[70%] break-words ${isOwnMessage
-//           ? 'bg-[#d9fdd3] text-gray-800'
-//           : 'bg-white text-gray-800'
-//           }`}
-//       >
-//         {isFileMessage ? (
-//           <FileMessage file={message.file} />
-//         ) : (
-//           <p className="mb-1">{message.content}</p>
-//         )}
-
-//         <div className="flex items-center justify-end text-xs text-gray-500">
-//           <span>{formattedTime}</span>
-//           {isOwnMessage && (
-//             <span className="ml-1">
-//               {message.isRead ?
-//                 <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" /> :
-//                 <Check className="h-3.5 w-3.5" />
-//               }
-//             </span>
-//           )}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
 const MessageBubble = ({ message, isOwnMessage }) => {
   const formattedTime = new Date(message.createdAt).toLocaleTimeString([], {
     hour: '2-digit',
@@ -102,10 +63,33 @@ export default function ChatInterface({ isAdmin = false, selectedUser = null }) 
   const messagesEndRef = useRef(null);
   const messageInputRef = useRef(null);
   const typingTimeout = useRef(null);
+  
 
   const username = isAdmin ? 'admin' : localStorage.getItem('chat_username');
   const receiver = isAdmin ? selectedUser : 'admin';
 
+
+  console.log('isAdmin', isAdmin, 'selectedUser', selectedUser);
+
+
+  const removeDuplicateMessages = (messages) => {
+  const uniqueMessages = [];
+  const seen = new Set();
+  
+  for (const message of messages) {
+    // Create a unique identifier using multiple properties
+    const identifier = `${message.content}-${message.sender}-${message.receiver}-${message.createdAt}`;
+    
+    if (!seen.has(identifier)) {
+      seen.add(identifier);
+      uniqueMessages.push(message);
+    }
+  }
+  
+  return uniqueMessages;
+};
+
+  
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -118,144 +102,305 @@ export default function ChatInterface({ isAdmin = false, selectedUser = null }) 
     }
   }, [loading, isAdmin, selectedUser]);
 
-  useEffect(() => {
-    if (!socket) return;
+//   useEffect(() => {
+//     if (!socket) return;
 
-    // Handle receiving message history
-    const handleMessagesHistory = (messageHistory) => {
-      setMessages(messageHistory);
-      setLoading(false);
+//     // Handle receiving message history
+//     const handleMessagesHistory = (messageHistory) => {
+//       setMessages(messageHistory);
+//       setLoading(false);
 
-      // Mark all unread messages as read
-      const unreadMessages = messageHistory.filter(
-        msg => !msg.isRead && msg.receiver === username
+//       // Mark all unread messages as read
+//       const unreadMessages = messageHistory.filter(
+//         msg => !msg.isRead && msg.receiver === username
+//       );
+
+//       if (unreadMessages.length > 0) {
+//         unreadMessages.forEach(msg => {
+//           socket.emit('messages:markRead', {
+//             sender: msg.sender,
+//             receiver: msg.receiver
+//           });
+//         });
+//       }
+//     };
+
+//     // Handle receiving a new message
+//     // const handleReceiveMessage = (message) => {
+//     //   setMessages(prev => [...prev, message]);
+
+//     //   // Mark message as read if we're the receiver and this is the active chat
+//     //   if (message.receiver === username) {
+//     //     // For admin, only mark as read if this user is selected
+//     //     const shouldMarkRead = !isAdmin || (isAdmin && selectedUser === message.sender);
+
+//     //     if (shouldMarkRead) {
+//     //       socket.emit('messages:markRead', {
+//     //         sender: message.sender,
+//     //         receiver: message.receiver
+//     //       });
+//     //     }
+//     //   }
+
+//     //   // Play notification sound if the message is from the other party
+//     //   if (message.sender !== username) {
+//     //     try {
+//     //       const audio = new Audio('/notification.mp3');
+//     //       audio.play().catch(err => console.log('Audio play error:', err));
+//     //     } catch (error) {
+//     //       console.log('Notification sound error:', error);
+//     //     }
+//     //   }
+//     // };
+
+// const handleReceiveMessage = (message) => {
+//       // FIX FOR ISSUE 1: Only add the message to state if it belongs to the current chat
+//       if (isAdmin) {
+//         // For admin: only add messages from/to the currently selected user
+//         if (message.sender === selectedUser || message.receiver === selectedUser) {
+//           setMessages(prev => [...prev, message]);
+//         }
+//       } else {
+//         // For regular users: add all messages (they only have one chat with admin)
+//         setMessages(prev => [...prev, message]);
+//       }
+
+//       // Mark message as read if we're the receiver and this is the active chat
+//       if (message.receiver === username) {
+//         // For admin, only mark as read if this user is selected
+//         const shouldMarkRead = !isAdmin || (isAdmin && selectedUser === message.sender);
+
+//         if (shouldMarkRead) {
+//           socket.emit('messages:markRead', {
+//             sender: message.sender,
+//             receiver: message.receiver
+//           });
+//         }
+//       }
+
+//       // Play notification sound if the message is from the other party
+//       if (message.sender !== username) {
+//         try {
+//           const audio = new Audio('https://res.cloudinary.com/duqzgojyp/video/upload/v1737207753/tpnevoboszj1rnsdsto1.mp3');
+//           audio.play().catch(err => console.log('Audio play error:', err));
+//         } catch (error) {
+//           console.log('Notification sound error:', error);
+//         }
+//       }
+//     };
+
+
+ 
+
+    
+//     // Handle message sent confirmation
+//     const handleMessageSent = (message) => {
+//       // Update the optimistic message with server data
+//       setMessages(prev => {
+//         const index = prev.findIndex(m =>
+//           m.content === message.content &&
+//           m.sender === message.sender &&
+//           m.receiver === message.receiver &&
+//           !m._id
+//         );
+
+//         if (index !== -1) {
+//           const newMessages = [...prev];
+//           newMessages[index] = message;
+//           return newMessages;
+//         }
+
+//         return [...prev, message];
+//       });
+//     };
+
+
+ 
+
+//     // Handle messages updated (marked as read)
+//     const handleMessagesUpdated = () => {
+//       setMessages(prev => {
+//         return prev.map(msg => {
+//           // Update read status for messages sent by this user
+//           if (msg.sender === username && !msg.isRead) {
+//             return { ...msg, isRead: true };
+//           }
+//           return msg;
+//         });
+//       });
+//     };
+
+//     // Handle message error
+//     const handleMessageError = ({ error }) => {
+//       setError(`Error sending message: ${error}`);
+//       setTimeout(() => setError(null), 5000);
+//     };
+
+//     // Typing indicators
+//     const handleUserTyping = ({ sender }) => {
+//       if ((isAdmin && sender === selectedUser) || (!isAdmin && sender === 'admin')) {
+//         setTyping(true);
+//       }
+//     };
+
+//     const handleUserStopTyping = ({ sender }) => {
+//       if ((isAdmin && sender === selectedUser) || (!isAdmin && sender === 'admin')) {
+//         setTyping(false);
+//       }
+//     };
+
+//     // Admin status
+//     const handleAdminStatus = (status) => {
+//       setAdminOnline(status.isOnline);
+//     };
+
+//     // Set up socket event listeners
+//     socket.on('messages:history', handleMessagesHistory);
+//     socket.on('message:receive', handleReceiveMessage);
+//     socket.on('message:sent', handleMessageSent);
+//     socket.on('message:error', handleMessageError);
+//     socket.on('messages:updated', handleMessagesUpdated);
+//     socket.on('user:typing', handleUserTyping);
+//     socket.on('user:stopTyping', handleUserStopTyping);
+//     socket.on('admin:status', handleAdminStatus);
+
+//     // Request admin status
+//     if (!isAdmin) {
+//       socket.emit('user:requestAdminStatus');
+//     }
+
+//     // Cleanup
+//     return () => {
+//       socket.off('messages:history', handleMessagesHistory);
+//       socket.off('message:receive', handleReceiveMessage);
+//       socket.off('message:sent', handleMessageSent);
+//       socket.off('message:error', handleMessageError);
+//       socket.off('messages:updated', handleMessagesUpdated);
+//       socket.off('user:typing', handleUserTyping);
+//       socket.off('user:stopTyping', handleUserStopTyping);
+//       socket.off('admin:status', handleAdminStatus);
+//     };
+//   }, [socket, username, isAdmin, selectedUser, receiver]);
+
+ 
+
+// Update useEffect to handle messages
+useEffect(() => {
+  if (!socket) return;
+
+  // Handle receiving message history
+  const handleMessagesHistory = (messageHistory) => {
+    // Remove any duplicates that might be in the message history
+    const uniqueMessages = removeDuplicateMessages(messageHistory);
+    setMessages(uniqueMessages);
+    setLoading(false);
+
+    // Mark all unread messages as read
+    const unreadMessages = uniqueMessages.filter(
+      msg => !msg.isRead && msg.receiver === username
+    );
+
+    if (unreadMessages.length > 0) {
+      unreadMessages.forEach(msg => {
+        socket.emit('messages:markRead', {
+          sender: msg.sender,
+          receiver: msg.receiver
+        });
+      });
+    }
+  };
+
+  const handleReceiveMessage = (message) => {
+    setMessages(prevMessages => {
+      // First check if this message already exists in our state
+      const messageExists = prevMessages.some(m => 
+        (m._id && m._id === message._id) || 
+        (m.content === message.content && 
+         m.sender === message.sender && 
+         m.receiver === message.receiver &&
+         Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 5000)
       );
+      
+      // If message already exists, don't add it again
+      if (messageExists) return prevMessages;
+      
+      // For admin, only show messages related to the selected user
+      if (isAdmin && message.sender !== selectedUser && message.receiver !== selectedUser) {
+        return prevMessages;
+      }
+      
+      // Add the new message
+      const newMessages = [...prevMessages, message];
+      
+      // Ensure no duplicates
+      return removeDuplicateMessages(newMessages);
+    });
 
-      if (unreadMessages.length > 0) {
-        unreadMessages.forEach(msg => {
-          socket.emit('messages:markRead', {
-            sender: msg.sender,
-            receiver: msg.receiver
-          });
+    // Mark message as read if we're the receiver
+    if (message.receiver === username) {
+      if (!isAdmin || (isAdmin && selectedUser === message.sender)) {
+        socket.emit('messages:markRead', {
+          sender: message.sender,
+          receiver: message.receiver
         });
       }
-    };
-
-    // Handle receiving a new message
-    const handleReceiveMessage = (message) => {
-      setMessages(prev => [...prev, message]);
-
-      // Mark message as read if we're the receiver and this is the active chat
-      if (message.receiver === username) {
-        // For admin, only mark as read if this user is selected
-        const shouldMarkRead = !isAdmin || (isAdmin && selectedUser === message.sender);
-
-        if (shouldMarkRead) {
-          socket.emit('messages:markRead', {
-            sender: message.sender,
-            receiver: message.receiver
-          });
-        }
-      }
-
-      // Play notification sound if the message is from the other party
-      if (message.sender !== username) {
-        try {
-          const audio = new Audio('/notification.mp3');
-          audio.play().catch(err => console.log('Audio play error:', err));
-        } catch (error) {
-          console.log('Notification sound error:', error);
-        }
-      }
-    };
-
-    // Handle message sent confirmation
-    const handleMessageSent = (message) => {
-      // Update the optimistic message with server data
-      setMessages(prev => {
-        const index = prev.findIndex(m =>
-          m.content === message.content &&
-          m.sender === message.sender &&
-          m.receiver === message.receiver &&
-          !m._id
-        );
-
-        if (index !== -1) {
-          const newMessages = [...prev];
-          newMessages[index] = message;
-          return newMessages;
-        }
-
-        return [...prev, message];
-      });
-    };
-
-    // Handle messages updated (marked as read)
-    const handleMessagesUpdated = () => {
-      setMessages(prev => {
-        return prev.map(msg => {
-          // Update read status for messages sent by this user
-          if (msg.sender === username && !msg.isRead) {
-            return { ...msg, isRead: true };
-          }
-          return msg;
-        });
-      });
-    };
-
-    // Handle message error
-    const handleMessageError = ({ error }) => {
-      setError(`Error sending message: ${error}`);
-      setTimeout(() => setError(null), 5000);
-    };
-
-    // Typing indicators
-    const handleUserTyping = ({ sender }) => {
-      if ((isAdmin && sender === selectedUser) || (!isAdmin && sender === 'admin')) {
-        setTyping(true);
-      }
-    };
-
-    const handleUserStopTyping = ({ sender }) => {
-      if ((isAdmin && sender === selectedUser) || (!isAdmin && sender === 'admin')) {
-        setTyping(false);
-      }
-    };
-
-    // Admin status
-    const handleAdminStatus = (status) => {
-      setAdminOnline(status.isOnline);
-    };
-
-    // Set up socket event listeners
-    socket.on('messages:history', handleMessagesHistory);
-    socket.on('message:receive', handleReceiveMessage);
-    socket.on('message:sent', handleMessageSent);
-    socket.on('message:error', handleMessageError);
-    socket.on('messages:updated', handleMessagesUpdated);
-    socket.on('user:typing', handleUserTyping);
-    socket.on('user:stopTyping', handleUserStopTyping);
-    socket.on('admin:status', handleAdminStatus);
-
-    // Request admin status
-    if (!isAdmin) {
-      socket.emit('user:requestAdminStatus');
     }
 
-    // Cleanup
-    return () => {
-      socket.off('messages:history', handleMessagesHistory);
-      socket.off('message:receive', handleReceiveMessage);
-      socket.off('message:sent', handleMessageSent);
-      socket.off('message:error', handleMessageError);
-      socket.off('messages:updated', handleMessagesUpdated);
-      socket.off('user:typing', handleUserTyping);
-      socket.off('user:stopTyping', handleUserStopTyping);
-      socket.off('admin:status', handleAdminStatus);
-    };
-  }, [socket, username, isAdmin, selectedUser, receiver]);
+    // Play notification sound if the message is from the other party
+    if (message.sender !== username) {
+      try {
+        const audio = new Audio('https://res.cloudinary.com/duqzgojyp/video/upload/v1737207753/tpnevoboszj1rnsdsto1.mp3');
+        audio.play().catch(err => console.log('Audio play error:', err));
+      } catch (error) {
+        console.log('Notification sound error:', error);
+      }
+    }
+  };
 
-  // Clear messages and reload when selected user changes (admin only)
+  // Handle message sent confirmation
+  const handleMessageSent = (message) => {
+    // When server confirms a message was sent, make sure we don't have duplicates
+    setMessages(prevMessages => {
+      // Find if we already have this message as a temporary one
+      const index = prevMessages.findIndex(m =>
+        (m.content === message.content &&
+        m.sender === message.sender &&
+        m.receiver === message.receiver &&
+        !m._id)
+      );
+
+      // If found, update it with the server version
+      if (index !== -1) {
+        const newMessages = [...prevMessages];
+        newMessages[index] = message;
+        return removeDuplicateMessages(newMessages);
+      }
+
+      // If not found, add it only if it doesn't already exist
+      const exists = prevMessages.some(m => m._id === message._id);
+      if (exists) return prevMessages;
+      
+      return removeDuplicateMessages([...prevMessages, message]);
+    });
+  };
+
+  // Set up socket event listeners
+  socket.on('messages:history', handleMessagesHistory);
+  socket.on('message:receive', handleReceiveMessage);
+  socket.on('message:sent', handleMessageSent);
+  // ... rest of your socket event listeners
+
+  // Cleanup
+  return () => {
+    socket.off('messages:history', handleMessagesHistory);
+    socket.off('message:receive', handleReceiveMessage);
+    socket.off('message:sent', handleMessageSent);
+    // ... rest of your socket event handler cleanup
+  };
+}, [socket, username, isAdmin, selectedUser, receiver]);
+
+
+// Clear messages and reload when selected user changes (admin only)
   useEffect(() => {
     if (isAdmin && selectedUser && socket && connected) {
       setLoading(true);
@@ -299,38 +444,90 @@ export default function ChatInterface({ isAdmin = false, selectedUser = null }) 
     }, 2000);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  // const handleSubmit = (e) => {
+  //   e.preventDefault();
 
-    if (!newMessage.trim() || !socket || !connected) return;
+  //   if (!newMessage.trim() || !socket || !connected) return;
 
-    // Stop typing indicator
-    handleStopTyping();
+  //   // Stop typing indicator
+  //   handleStopTyping();
 
-    // Add message to state immediately (optimistic UI)
-    const tempMessage = {
-      content: newMessage,
-      sender: username,
-      receiver,
-      createdAt: new Date().toISOString(),
-      isRead: false
-    };
+  //   // Add message to state immediately (optimistic UI)
+  //   const tempMessage = {
+  //     content: newMessage,
+  //     sender: username,
+  //     receiver,
+  //     createdAt: new Date().toISOString(),
+  //     isRead: false
+  //   };
 
-    setMessages(prev => [...prev, tempMessage]);
+  //   setMessages(prev => [...prev, tempMessage]);
 
-    // Send message via socket
-    socket.emit('message:send', {
-      content: newMessage,
-      sender: username,
-      receiver
-    });
+  //   // Send message via socket
+  //   socket.emit('message:send', {
+  //     content: newMessage,
+  //     sender: username,
+  //     receiver
+  //   });
 
-    // Clear input and timeout
-    setNewMessage('');
-    if (typingTimeout.current) {
-      clearTimeout(typingTimeout.current);
-    }
+  //   // Clear input and timeout
+  //   setNewMessage('');
+  //   if (typingTimeout.current) {
+  //     clearTimeout(typingTimeout.current);
+  //   }
+  // };
+
+
+  // Replace your handleSubmit function
+const handleSubmit = (e) => {
+  e.preventDefault();
+
+  if (!newMessage.trim() || !socket || !connected) return;
+
+  // Stop typing indicator
+  handleStopTyping();
+
+  // Only add message to state if there isn't a similar one already
+  const tempMessage = {
+    content: newMessage,
+    sender: username,
+    receiver,
+    createdAt: new Date().toISOString(),
+    isRead: false
   };
+
+  setMessages(prevMessages => {
+    // Check if this exact message is already in state
+    const isDuplicate = prevMessages.some(m => 
+      m.content === tempMessage.content &&
+      m.sender === tempMessage.sender &&
+      m.receiver === tempMessage.receiver &&
+      Math.abs(new Date(m.createdAt) - new Date(tempMessage.createdAt)) < 5000
+    );
+    
+    // Only add if not a duplicate
+    if (!isDuplicate) {
+      return [...prevMessages, tempMessage];
+    }
+    return prevMessages;
+  });
+
+  // Send message via socket
+  socket.emit('message:send', {
+    content: newMessage,
+    sender: username,
+    receiver
+  });
+
+  // Clear input and timeout
+  setNewMessage('');
+  if (typingTimeout.current) {
+    clearTimeout(typingTimeout.current);
+  }
+};
+
+ 
+
 
   const handleFileUpload = (fileData) => {
     if (!socket || !connected) return;
