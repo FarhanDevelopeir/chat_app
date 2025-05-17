@@ -295,25 +295,6 @@ export default function AdminChatPage() {
           <AdminLoginForm onSuccess={() => setIsLoggedIn(true)} />
         </div>
       )}
-{/* 
-      <header className="p-4 flex items-center justify-between bg-slate-900 text-white shadow-md">
-        <div className="flex items-center gap-2">
-          <CircleUser className="h-6 w-6" />
-          <h1 className="text-xl font-bold">Admin Dashboard</h1>
-        </div>
-        
-        {isLoggedIn && (
-          <Button 
-            variant="destructive" 
-            size="sm"
-            onClick={handleLogout}
-            className="flex items-center gap-2"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Logout</span>
-          </Button>
-        )}
-      </header> */}
 
       <div className="flex flex-1 overflow-hidden">
         <div className="w-1/4 border-r border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -322,6 +303,7 @@ export default function AdminChatPage() {
             onSelectUser={handleSelectUser}
             selectedUser={selectedUser}
             setIsLoggedIn={setIsLoggedIn}
+            socket={socket}
           />
         </div>
 

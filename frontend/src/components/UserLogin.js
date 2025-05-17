@@ -1,11 +1,19 @@
+
+
 // 'use client';
 
 // import { useState, useEffect } from 'react';
 // import { useSocket } from '@/context/SocketContext';
+// import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+// import { Input } from '@/components/ui/input';
+// import { Button } from '@/components/ui/button';
+// import { Label } from '@/components/ui/label';
+// import { Lock, User, AlertCircle } from 'lucide-react';
+// import { Alert, AlertDescription } from '@/components/ui/alert';
 // import { useRouter } from 'next/navigation';
 
-// export default function UserLogin() {
-//   const [username, setUsername] = useState('');
+// export default function UserLogin({ onSuccess }) {
+//     const [username, setUsername] = useState('');
 //   const [loading, setLoading] = useState(false);
 //   const [error, setError] = useState('');
 //   const { socket, connected } = useSocket();
@@ -73,58 +81,59 @@
 //     // Send login request via socket
 //     socket.emit('user:login', { username, deviceId });
 //   };
-  
+
 //   return (
-//     <div className="flex items-center justify-center min-h-screen bg-gray-100">
-//       <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
-//         <div className="text-center">
-//           <h1 className="text-3xl font-bold text-gray-800">Welcome to Chat</h1>
-//           <p className="mt-2 text-gray-600">Enter a username to start chatting</p>
-//         </div>
+//     <Card className="w-full max-w-md mx-auto shadow-lg" >
+//       <CardHeader className="space-y-1">
+//         <CardTitle className="text-2xl font-bold text-center">Welcome to Chat</CardTitle>
+//         <CardDescription className="text-center">
+//         Enter a username to start chatting
+//         </CardDescription>
+//       </CardHeader>
+//       <CardContent className="space-y-4">
+//         {error && (
+//           <Alert variant="destructive" className="text-sm">
+//             <AlertCircle className="h-4 w-4" />
+//             <AlertDescription>{error}</AlertDescription>
+//           </Alert>
+//         )}
         
-//         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-//           {error && (
-//             <div className="p-3 text-sm text-red-700 bg-red-100 rounded-md">
-//               {error}
-//             </div>
-//           )}
-          
-//           <div>
-//             <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-//               Username
-//             </label>
-//             <input
+//         <div className="space-y-2">
+//           <Label htmlFor="username">Username</Label>
+//           <div className="relative">
+//             <User className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+//             <Input
 //               id="username"
-//               name="username"
-//               type="text"
-//               required
+//               className="pl-9"
+//               placeholder="Enter your username"
 //               value={username}
 //               onChange={(e) => setUsername(e.target.value)}
-//               className="block w-full px-3 py-2 mt-1 placeholder-gray-400 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-//               placeholder="Enter your username"
 //             />
 //           </div>
-          
-//           <div>
-//             <button
-//               type="submit"
-//               disabled={loading || !connected}
-//               className={`w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm ${
-//                 loading || !connected ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-//               }`}
-//             >
-//               {loading ? 'Connecting...' : 'Start Chatting'}
-//             </button>
-//           </div>
-//         </form>
-//       </div>
-//     </div>
+//         </div>
+        
+      
+//       </CardContent>
+      
+//       <CardFooter>
+//         <Button 
+//           className="w-full bg-[#00a884] text-white hover:bg-[#008f72] focus:ring-2 focus:ring-offset-2 focus:ring-[#00a884] rounded-md"
+//           onClick={handleSubmit}
+//           disabled={loading}
+//         >
+//           {loading ? (
+//             <>
+//               <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+//               Authenticating...
+//             </>
+//           ) : (
+//             'Login'
+//           )}
+//         </Button>
+//       </CardFooter>
+//     </Card>
 //   );
 // }
-
-
-
-
 
 
 
@@ -136,15 +145,16 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Lock, User, AlertCircle } from 'lucide-react';
+import { Lock, User, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useRouter } from 'next/navigation';
-// import { useRouter } from 'next/router';
 
 export default function UserLogin({ onSuccess }) {
-    const [username, setUsername] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { socket, connected } = useSocket();
   const router = useRouter();
   
@@ -197,6 +207,11 @@ export default function UserLogin({ onSuccess }) {
       return;
     }
     
+    if (!password.trim()) {
+      setError('Password is required');
+      return;
+    }
+    
     setLoading(true);
     setError('');
     
@@ -207,8 +222,12 @@ export default function UserLogin({ onSuccess }) {
       localStorage.setItem('chat_device_id', deviceId);
     }
     
-    // Send login request via socket
-    socket.emit('user:login', { username, deviceId });
+    // Send login request via socket with password
+    socket.emit('user:login', { username, password, deviceId });
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
@@ -216,7 +235,7 @@ export default function UserLogin({ onSuccess }) {
       <CardHeader className="space-y-1">
         <CardTitle className="text-2xl font-bold text-center">Welcome to Chat</CardTitle>
         <CardDescription className="text-center">
-        Enter a username to start chatting
+          Enter your credentials to start chatting
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -241,7 +260,31 @@ export default function UserLogin({ onSuccess }) {
           </div>
         </div>
         
-      
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              className="pl-9 pr-10"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={togglePasswordVisibility}
+              className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+        </div>
       </CardContent>
       
       <CardFooter>
