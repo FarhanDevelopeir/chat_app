@@ -12,7 +12,7 @@ import { CheckCircle, Star } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   Dialog,
-  DialogContent,
+  DialogContent, 
   DialogHeader,
   DialogTitle,
   DialogFooter,
