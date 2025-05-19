@@ -52,22 +52,14 @@ export default function UserChatPage() {
 
   if (loading) {
     return (
-      // <div className="flex items-center justify-center h-screen bg-gray-100">
-      //   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
-      // </div>
+   
       <>
       <ChatLoader/>
       </>
     );
   }
 
-  // if (!isLoggedIn) {
-  //   return (
-  //     <div className="flex items-center justify-center h-screen bg-gray-100">
-  //       <UserLogin onLoginSuccess={() => setIsLoggedIn(true)} />
-  //     </div>
-  //   );
-  // }
+  
 
   return (
     <div className="flex h-screen bg-[#f0f2f5]">
@@ -107,7 +99,14 @@ export default function UserChatPage() {
                   )}
                 </div>
                 <div className="ml-3">
-                  <p className="font-medium text-gray-900">Admin Support</p>
+                  <p className="font-medium text-gray-900 flex items-center gap-1">Admin Support
+                    <img
+                src="/blue-tick.png"
+                alt="Blue Tick"
+                className="w-5 h-5"
+              />
+
+                  </p>
                   <p className="text-sm text-gray-500">
                     {adminOnline ? 'Online' : 'Offline'}
                   </p>

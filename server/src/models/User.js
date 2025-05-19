@@ -7,9 +7,13 @@ const UserSchema = new mongoose.Schema({
     unique: true,
     trim: true
   },
+  password: {
+    type: String,
+    required: false
+  },
   deviceId: {
     type: String,
-    required: true
+    // required: true
   },
   isOnline: {
     type: Boolean,
@@ -20,5 +24,9 @@ const UserSchema = new mongoose.Schema({
     default: Date.now
   }
 }, { timestamps: true });
+
+UserSchema.methods.comparePassword = async function(candidatePassword) {
+  return this.password === candidatePassword;
+};
 
 module.exports = mongoose.model('User', UserSchema);

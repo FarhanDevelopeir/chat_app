@@ -2,11 +2,25 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSocket } from '@/context/SocketContext';
-import { Send, Paperclip, Smile, Mic, CheckCheck, Check } from 'lucide-react';
+import { Send, Paperclip, Smile, Mic, CheckCheck, Check, Edit } from 'lucide-react';
 import FileMessage from './FileMessage';
 import FileUpload from './FileUpload';
 import VoiceRecorder from './VoiceRecorder';
 import AudioMessage from './AudioMessage';
+// import chatBg from '../../public/chat-bg.jpg';
+import { CheckCircle, Star } from 'lucide-react';
+import { Button } from './ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription
+} from '@/components/ui/dialog';
+import CreateUser from './CreateUser';
+
+
 
 const MessageBubble = ({ message, isOwnMessage }) => {
   const formattedTime = new Date(message.createdAt).toLocaleTimeString([], {
@@ -52,7 +66,14 @@ const MessageBubble = ({ message, isOwnMessage }) => {
 };
 
 
-export default function ChatInterface({ isAdmin = false, selectedUser = null }) {
+export default function ChatInterface({ isAdmin = false, selectedUser = null, users=null, dialogOpen=null, setDialogOpen= null, setUserToEdit=null, setIsEditMode=null,
+            userToEdit=null,
+            isEditMode=null,
+            newUsername=null,
+            newPassword=null,
+            setNewUsername=null,
+            setNewPassword=null,
+ }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -63,7 +84,12 @@ export default function ChatInterface({ isAdmin = false, selectedUser = null }) 
   const messagesEndRef = useRef(null);
   const messageInputRef = useRef(null);
   const typingTimeout = useRef(null);
+
+
+
+  // for Editing user
   
+
 
   const username = isAdmin ? 'admin' : localStorage.getItem('chat_username');
   const receiver = isAdmin ? selectedUser : 'admin';
@@ -71,25 +97,39 @@ export default function ChatInterface({ isAdmin = false, selectedUser = null }) 
 
   console.log('isAdmin', isAdmin, 'selectedUser', selectedUser);
 
+  // useEffect(() => {
+  //   if (!socket) return;
+
+  //   const handleUserList = (userList) => {
+  //     setUsers(userList);
+  //   };
+
+  //   socket.on('admin:userList', handleUserList);
+
+  //   return () => {
+  //     socket.off('admin:userList', handleUserList);
+  //   };
+  // }, [socket]);
+
 
   const removeDuplicateMessages = (messages) => {
-  const uniqueMessages = [];
-  const seen = new Set();
-  
-  for (const message of messages) {
-    // Create a unique identifier using multiple properties
-    const identifier = `${message.content}-${message.sender}-${message.receiver}-${message.createdAt}`;
-    
-    if (!seen.has(identifier)) {
-      seen.add(identifier);
-      uniqueMessages.push(message);
-    }
-  }
-  
-  return uniqueMessages;
-};
+    const uniqueMessages = [];
+    const seen = new Set();
 
-  
+    for (const message of messages) {
+      // Create a unique identifier using multiple properties
+      const identifier = `${message.content}-${message.sender}-${message.receiver}-${message.createdAt}`;
+
+      if (!seen.has(identifier)) {
+        seen.add(identifier);
+        uniqueMessages.push(message);
+      }
+    }
+
+    return uniqueMessages;
+  };
+
+
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -102,305 +142,124 @@ export default function ChatInterface({ isAdmin = false, selectedUser = null }) 
     }
   }, [loading, isAdmin, selectedUser]);
 
-//   useEffect(() => {
-//     if (!socket) return;
 
-//     // Handle receiving message history
-//     const handleMessagesHistory = (messageHistory) => {
-//       setMessages(messageHistory);
-//       setLoading(false);
+  // Update useEffect to handle messages
+  useEffect(() => {
+    if (!socket) return;
 
-//       // Mark all unread messages as read
-//       const unreadMessages = messageHistory.filter(
-//         msg => !msg.isRead && msg.receiver === username
-//       );
+    // Handle receiving message history
+    const handleMessagesHistory = (messageHistory) => {
+      // Remove any duplicates that might be in the message history
+      const uniqueMessages = removeDuplicateMessages(messageHistory);
+      setMessages(uniqueMessages);
+      setLoading(false);
 
-//       if (unreadMessages.length > 0) {
-//         unreadMessages.forEach(msg => {
-//           socket.emit('messages:markRead', {
-//             sender: msg.sender,
-//             receiver: msg.receiver
-//           });
-//         });
-//       }
-//     };
-
-//     // Handle receiving a new message
-//     // const handleReceiveMessage = (message) => {
-//     //   setMessages(prev => [...prev, message]);
-
-//     //   // Mark message as read if we're the receiver and this is the active chat
-//     //   if (message.receiver === username) {
-//     //     // For admin, only mark as read if this user is selected
-//     //     const shouldMarkRead = !isAdmin || (isAdmin && selectedUser === message.sender);
-
-//     //     if (shouldMarkRead) {
-//     //       socket.emit('messages:markRead', {
-//     //         sender: message.sender,
-//     //         receiver: message.receiver
-//     //       });
-//     //     }
-//     //   }
-
-//     //   // Play notification sound if the message is from the other party
-//     //   if (message.sender !== username) {
-//     //     try {
-//     //       const audio = new Audio('/notification.mp3');
-//     //       audio.play().catch(err => console.log('Audio play error:', err));
-//     //     } catch (error) {
-//     //       console.log('Notification sound error:', error);
-//     //     }
-//     //   }
-//     // };
-
-// const handleReceiveMessage = (message) => {
-//       // FIX FOR ISSUE 1: Only add the message to state if it belongs to the current chat
-//       if (isAdmin) {
-//         // For admin: only add messages from/to the currently selected user
-//         if (message.sender === selectedUser || message.receiver === selectedUser) {
-//           setMessages(prev => [...prev, message]);
-//         }
-//       } else {
-//         // For regular users: add all messages (they only have one chat with admin)
-//         setMessages(prev => [...prev, message]);
-//       }
-
-//       // Mark message as read if we're the receiver and this is the active chat
-//       if (message.receiver === username) {
-//         // For admin, only mark as read if this user is selected
-//         const shouldMarkRead = !isAdmin || (isAdmin && selectedUser === message.sender);
-
-//         if (shouldMarkRead) {
-//           socket.emit('messages:markRead', {
-//             sender: message.sender,
-//             receiver: message.receiver
-//           });
-//         }
-//       }
-
-//       // Play notification sound if the message is from the other party
-//       if (message.sender !== username) {
-//         try {
-//           const audio = new Audio('https://res.cloudinary.com/duqzgojyp/video/upload/v1737207753/tpnevoboszj1rnsdsto1.mp3');
-//           audio.play().catch(err => console.log('Audio play error:', err));
-//         } catch (error) {
-//           console.log('Notification sound error:', error);
-//         }
-//       }
-//     };
-
-
- 
-
-    
-//     // Handle message sent confirmation
-//     const handleMessageSent = (message) => {
-//       // Update the optimistic message with server data
-//       setMessages(prev => {
-//         const index = prev.findIndex(m =>
-//           m.content === message.content &&
-//           m.sender === message.sender &&
-//           m.receiver === message.receiver &&
-//           !m._id
-//         );
-
-//         if (index !== -1) {
-//           const newMessages = [...prev];
-//           newMessages[index] = message;
-//           return newMessages;
-//         }
-
-//         return [...prev, message];
-//       });
-//     };
-
-
- 
-
-//     // Handle messages updated (marked as read)
-//     const handleMessagesUpdated = () => {
-//       setMessages(prev => {
-//         return prev.map(msg => {
-//           // Update read status for messages sent by this user
-//           if (msg.sender === username && !msg.isRead) {
-//             return { ...msg, isRead: true };
-//           }
-//           return msg;
-//         });
-//       });
-//     };
-
-//     // Handle message error
-//     const handleMessageError = ({ error }) => {
-//       setError(`Error sending message: ${error}`);
-//       setTimeout(() => setError(null), 5000);
-//     };
-
-//     // Typing indicators
-//     const handleUserTyping = ({ sender }) => {
-//       if ((isAdmin && sender === selectedUser) || (!isAdmin && sender === 'admin')) {
-//         setTyping(true);
-//       }
-//     };
-
-//     const handleUserStopTyping = ({ sender }) => {
-//       if ((isAdmin && sender === selectedUser) || (!isAdmin && sender === 'admin')) {
-//         setTyping(false);
-//       }
-//     };
-
-//     // Admin status
-//     const handleAdminStatus = (status) => {
-//       setAdminOnline(status.isOnline);
-//     };
-
-//     // Set up socket event listeners
-//     socket.on('messages:history', handleMessagesHistory);
-//     socket.on('message:receive', handleReceiveMessage);
-//     socket.on('message:sent', handleMessageSent);
-//     socket.on('message:error', handleMessageError);
-//     socket.on('messages:updated', handleMessagesUpdated);
-//     socket.on('user:typing', handleUserTyping);
-//     socket.on('user:stopTyping', handleUserStopTyping);
-//     socket.on('admin:status', handleAdminStatus);
-
-//     // Request admin status
-//     if (!isAdmin) {
-//       socket.emit('user:requestAdminStatus');
-//     }
-
-//     // Cleanup
-//     return () => {
-//       socket.off('messages:history', handleMessagesHistory);
-//       socket.off('message:receive', handleReceiveMessage);
-//       socket.off('message:sent', handleMessageSent);
-//       socket.off('message:error', handleMessageError);
-//       socket.off('messages:updated', handleMessagesUpdated);
-//       socket.off('user:typing', handleUserTyping);
-//       socket.off('user:stopTyping', handleUserStopTyping);
-//       socket.off('admin:status', handleAdminStatus);
-//     };
-//   }, [socket, username, isAdmin, selectedUser, receiver]);
-
- 
-
-// Update useEffect to handle messages
-useEffect(() => {
-  if (!socket) return;
-
-  // Handle receiving message history
-  const handleMessagesHistory = (messageHistory) => {
-    // Remove any duplicates that might be in the message history
-    const uniqueMessages = removeDuplicateMessages(messageHistory);
-    setMessages(uniqueMessages);
-    setLoading(false);
-
-    // Mark all unread messages as read
-    const unreadMessages = uniqueMessages.filter(
-      msg => !msg.isRead && msg.receiver === username
-    );
-
-    if (unreadMessages.length > 0) {
-      unreadMessages.forEach(msg => {
-        socket.emit('messages:markRead', {
-          sender: msg.sender,
-          receiver: msg.receiver
-        });
-      });
-    }
-  };
-
-  const handleReceiveMessage = (message) => {
-    setMessages(prevMessages => {
-      // First check if this message already exists in our state
-      const messageExists = prevMessages.some(m => 
-        (m._id && m._id === message._id) || 
-        (m.content === message.content && 
-         m.sender === message.sender && 
-         m.receiver === message.receiver &&
-         Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 5000)
-      );
-      
-      // If message already exists, don't add it again
-      if (messageExists) return prevMessages;
-      
-      // For admin, only show messages related to the selected user
-      if (isAdmin && message.sender !== selectedUser && message.receiver !== selectedUser) {
-        return prevMessages;
-      }
-      
-      // Add the new message
-      const newMessages = [...prevMessages, message];
-      
-      // Ensure no duplicates
-      return removeDuplicateMessages(newMessages);
-    });
-
-    // Mark message as read if we're the receiver
-    if (message.receiver === username) {
-      if (!isAdmin || (isAdmin && selectedUser === message.sender)) {
-        socket.emit('messages:markRead', {
-          sender: message.sender,
-          receiver: message.receiver
-        });
-      }
-    }
-
-    // Play notification sound if the message is from the other party
-    if (message.sender !== username) {
-      try {
-        const audio = new Audio('https://res.cloudinary.com/duqzgojyp/video/upload/v1737207753/tpnevoboszj1rnsdsto1.mp3');
-        audio.play().catch(err => console.log('Audio play error:', err));
-      } catch (error) {
-        console.log('Notification sound error:', error);
-      }
-    }
-  };
-
-  // Handle message sent confirmation
-  const handleMessageSent = (message) => {
-    // When server confirms a message was sent, make sure we don't have duplicates
-    setMessages(prevMessages => {
-      // Find if we already have this message as a temporary one
-      const index = prevMessages.findIndex(m =>
-        (m.content === message.content &&
-        m.sender === message.sender &&
-        m.receiver === message.receiver &&
-        !m._id)
+      // Mark all unread messages as read
+      const unreadMessages = uniqueMessages.filter(
+        msg => !msg.isRead && msg.receiver === username
       );
 
-      // If found, update it with the server version
-      if (index !== -1) {
-        const newMessages = [...prevMessages];
-        newMessages[index] = message;
+      if (unreadMessages.length > 0) {
+        unreadMessages.forEach(msg => {
+          socket.emit('messages:markRead', {
+            sender: msg.sender,
+            receiver: msg.receiver
+          });
+        });
+      }
+    };
+
+    const handleReceiveMessage = (message) => {
+      setMessages(prevMessages => {
+        // First check if this message already exists in our state
+        const messageExists = prevMessages.some(m =>
+          (m._id && m._id === message._id) ||
+          (m.content === message.content &&
+            m.sender === message.sender &&
+            m.receiver === message.receiver &&
+            Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 5000)
+        );
+
+        // If message already exists, don't add it again
+        if (messageExists) return prevMessages;
+
+        // For admin, only show messages related to the selected user
+        if (isAdmin && message.sender !== selectedUser && message.receiver !== selectedUser) {
+          return prevMessages;
+        }
+
+        // Add the new message
+        const newMessages = [...prevMessages, message];
+
+        // Ensure no duplicates
         return removeDuplicateMessages(newMessages);
+      });
+
+      // Mark message as read if we're the receiver
+      if (message.receiver === username) {
+        if (!isAdmin || (isAdmin && selectedUser === message.sender)) {
+          socket.emit('messages:markRead', {
+            sender: message.sender,
+            receiver: message.receiver
+          });
+        }
       }
 
-      // If not found, add it only if it doesn't already exist
-      const exists = prevMessages.some(m => m._id === message._id);
-      if (exists) return prevMessages;
-      
-      return removeDuplicateMessages([...prevMessages, message]);
-    });
-  };
+      // Play notification sound if the message is from the other party
+      if (message.sender !== username) {
+        try {
+          const audio = new Audio('https://res.cloudinary.com/duqzgojyp/video/upload/v1737207753/tpnevoboszj1rnsdsto1.mp3');
+          audio.play().catch(err => console.log('Audio play error:', err));
+        } catch (error) {
+          console.log('Notification sound error:', error);
+        }
+      }
+    };
 
-  // Set up socket event listeners
-  socket.on('messages:history', handleMessagesHistory);
-  socket.on('message:receive', handleReceiveMessage);
-  socket.on('message:sent', handleMessageSent);
-  // ... rest of your socket event listeners
+    // Handle message sent confirmation
+    const handleMessageSent = (message) => {
+      // When server confirms a message was sent, make sure we don't have duplicates
+      setMessages(prevMessages => {
+        // Find if we already have this message as a temporary one
+        const index = prevMessages.findIndex(m =>
+        (m.content === message.content &&
+          m.sender === message.sender &&
+          m.receiver === message.receiver &&
+          !m._id)
+        );
 
-  // Cleanup
-  return () => {
-    socket.off('messages:history', handleMessagesHistory);
-    socket.off('message:receive', handleReceiveMessage);
-    socket.off('message:sent', handleMessageSent);
-    // ... rest of your socket event handler cleanup
-  };
-}, [socket, username, isAdmin, selectedUser, receiver]);
+        // If found, update it with the server version
+        if (index !== -1) {
+          const newMessages = [...prevMessages];
+          newMessages[index] = message;
+          return removeDuplicateMessages(newMessages);
+        }
+
+        // If not found, add it only if it doesn't already exist
+        const exists = prevMessages.some(m => m._id === message._id);
+        if (exists) return prevMessages;
+
+        return removeDuplicateMessages([...prevMessages, message]);
+      });
+    };
+
+    // Set up socket event listeners
+    socket.on('messages:history', handleMessagesHistory);
+    socket.on('message:receive', handleReceiveMessage);
+    socket.on('message:sent', handleMessageSent);
+    // ... rest of your socket event listeners
+
+    // Cleanup
+    return () => {
+      socket.off('messages:history', handleMessagesHistory);
+      socket.off('message:receive', handleReceiveMessage);
+      socket.off('message:sent', handleMessageSent);
+      // ... rest of your socket event handler cleanup
+    };
+  }, [socket, username, isAdmin, selectedUser, receiver]);
 
 
-// Clear messages and reload when selected user changes (admin only)
+  // Clear messages and reload when selected user changes (admin only)
   useEffect(() => {
     if (isAdmin && selectedUser && socket && connected) {
       setLoading(true);
@@ -444,89 +303,57 @@ useEffect(() => {
     }, 2000);
   };
 
-  // const handleSubmit = (e) => {
-  //   e.preventDefault();
-
-  //   if (!newMessage.trim() || !socket || !connected) return;
-
-  //   // Stop typing indicator
-  //   handleStopTyping();
-
-  //   // Add message to state immediately (optimistic UI)
-  //   const tempMessage = {
-  //     content: newMessage,
-  //     sender: username,
-  //     receiver,
-  //     createdAt: new Date().toISOString(),
-  //     isRead: false
-  //   };
-
-  //   setMessages(prev => [...prev, tempMessage]);
-
-  //   // Send message via socket
-  //   socket.emit('message:send', {
-  //     content: newMessage,
-  //     sender: username,
-  //     receiver
-  //   });
-
-  //   // Clear input and timeout
-  //   setNewMessage('');
-  //   if (typingTimeout.current) {
-  //     clearTimeout(typingTimeout.current);
-  //   }
-  // };
 
 
   // Replace your handleSubmit function
-const handleSubmit = (e) => {
-  e.preventDefault();
+  const handleSubmit = (e) => {
+    e.preventDefault();
 
-  if (!newMessage.trim() || !socket || !connected) return;
+    if (!newMessage.trim() || !socket || !connected) return;
 
-  // Stop typing indicator
-  handleStopTyping();
+    // Stop typing indicator
+    handleStopTyping();
 
-  // Only add message to state if there isn't a similar one already
-  const tempMessage = {
-    content: newMessage,
-    sender: username,
-    receiver,
-    createdAt: new Date().toISOString(),
-    isRead: false
+    // Only add message to state if there isn't a similar one already
+    const tempMessage = {
+      content: newMessage,
+      sender: username,
+      receiver,
+      createdAt: new Date().toISOString(),
+      isRead: false
+    };
+
+    setMessages(prevMessages => {
+      // Check if this exact message is already in state
+      const isDuplicate = prevMessages.some(m =>
+        m.content === tempMessage.content &&
+        m.sender === tempMessage.sender &&
+        m.receiver === tempMessage.receiver &&
+        Math.abs(new Date(m.createdAt) - new Date(tempMessage.createdAt)) < 5000
+      );
+
+      // Only add if not a duplicate
+      if (!isDuplicate) {
+        return [...prevMessages, tempMessage];
+      }
+      return prevMessages;
+    });
+
+    // Send message via socket
+    socket.emit('message:send', {
+      content: newMessage,
+      sender: username,
+      receiver
+    });
+
+    // Clear input and timeout
+    setNewMessage('');
+    if (typingTimeout.current) {
+      clearTimeout(typingTimeout.current);
+    }
   };
 
-  setMessages(prevMessages => {
-    // Check if this exact message is already in state
-    const isDuplicate = prevMessages.some(m => 
-      m.content === tempMessage.content &&
-      m.sender === tempMessage.sender &&
-      m.receiver === tempMessage.receiver &&
-      Math.abs(new Date(m.createdAt) - new Date(tempMessage.createdAt)) < 5000
-    );
-    
-    // Only add if not a duplicate
-    if (!isDuplicate) {
-      return [...prevMessages, tempMessage];
-    }
-    return prevMessages;
-  });
 
-  // Send message via socket
-  socket.emit('message:send', {
-    content: newMessage,
-    sender: username,
-    receiver
-  });
-
-  // Clear input and timeout
-  setNewMessage('');
-  if (typingTimeout.current) {
-    clearTimeout(typingTimeout.current);
-  }
-};
-
- 
 
 
   const handleFileUpload = (fileData) => {
@@ -599,16 +426,23 @@ const handleSubmit = (e) => {
     );
   }
 
-  // WhatsApp themed chat background
+
   const chatBgStyle = {
-    backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23e5e7eb' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E")`,
-    backgroundColor: '#efeae2'
+    backgroundImage: `url('/chat-bg.jpg')`,
+    backgroundRepeat: 'repeat',
+    // backgroundSize: 'cover',
+    backgroundColor: '#efeae2',
+    marginTop: '-10',
+
+    // backgroundBlendMode: 'overlay',
+
   };
+
 
   return (
     <div className="flex flex-col h-full">
       {/* Chat header */}
-      <div className="flex items-center justify-between p-3 bg-[#f0f2f5] border-b border-gray-200">
+      {/* <div className="flex items-center justify-between p-3 bg-[#f0f2f5] border-b border-gray-200">
         <div className="flex items-center">
           <div className="relative">
             <div className="w-10 h-10 rounded-full bg-[#00a884] flex items-center justify-center text-white font-medium">
@@ -619,8 +453,16 @@ const handleSubmit = (e) => {
             )}
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-gray-900  flex items-center gap-1">
               {isAdmin ? selectedUser : 'Admin Support'}
+              {!isAdmin && (
+                <img
+                src="/blue-tick.png"
+                alt="Blue Tick"
+                className="w-5 h-5"
+              />
+              )}
+
             </p>
             {typing ? (
               <p className="text-xs text-gray-500 animate-pulse">typing...</p>
@@ -631,10 +473,67 @@ const handleSubmit = (e) => {
             )}
           </div>
         </div>
+      </div> */}
+
+
+      {/* // Updated header component */}
+<div className="flex items-center justify-between p-3 bg-[#f0f2f5] border-b border-gray-200">
+  <div className="flex items-center">
+    <div className="relative">
+      <div className="w-10 h-10 rounded-full bg-[#00a884] flex items-center justify-center text-white font-medium">
+        {isAdmin ? selectedUser?.charAt(0).toUpperCase() : 'A'}
       </div>
+      {!isAdmin && adminOnline && (
+        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+      )}
+    </div>
+    <div className="ml-3">
+      <p className="text-sm font-medium text-gray-900 flex items-center gap-1">
+        {isAdmin ? selectedUser : 'Admin Support'}
+        {!isAdmin && (
+          <img
+            src="/blue-tick.png"
+            alt="Blue Tick"
+            className="w-5 h-5"
+          />
+        )}
+      </p>
+      {typing ? (
+        <p className="text-xs text-gray-500 animate-pulse">typing...</p>
+      ) : (
+        <p className="text-xs text-gray-500">
+          {!isAdmin && (adminOnline ? 'online' : 'offline')}
+        </p>
+      )}
+    </div>
+  </div>
+  
+  {/* Edit button - only show for admin when a user is selected */}
+  {isAdmin && selectedUser && (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => {
+        // Find the selected user's data
+        const userToEdit = users.find(user => user.username === selectedUser);
+        setUserToEdit(userToEdit);
+        setIsEditMode(true);
+        setDialogOpen(true);
+      }}
+      className="flex items-center gap-2"
+    >
+      <Edit className="h-4 w-4" />
+      Edit
+    </Button>
+  )}
+</div>
+
+
+
 
       {/* Messages area */}
       <div className="flex-1 p-4 overflow-y-auto" style={chatBgStyle}>
+      
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#00a884]"></div>
@@ -713,6 +612,22 @@ const handleSubmit = (e) => {
           </p>
         )}
       </form>
+
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <CreateUser
+          socket={socket}
+          dialogOpen={dialogOpen}
+          setDialogOpen={setDialogOpen}
+          newUsername={newUsername}
+          setNewUsername={setNewUsername}
+          newPassword={newPassword}
+          setNewPassword={setNewPassword} 
+          isEditMode={isEditMode}
+          userToEdit={userToEdit}
+          />
+          
+      </Dialog> 
     </div>
   );
 } 

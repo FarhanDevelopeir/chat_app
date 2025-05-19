@@ -30,7 +30,8 @@ export function SocketProvider({ children }) {
       
       if (username && deviceId) {
         console.log('Attempting auto-login after reconnection');
-        socketInstance.emit('user:login', { username, deviceId });
+        // socketInstance.emit('user:login', { username, deviceId });
+        socketInstance.emit('user:islogin', { username, deviceId });
       }
     });
     

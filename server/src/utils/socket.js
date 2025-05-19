@@ -27,24 +27,223 @@ const setupSocket = (server) => {
   io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
 
-    // User authentication/login
-    socket.on('user:login', async ({ username, deviceId }) => {
+    socket.on('admin:createUser', async ({ username, password }) => {
       try {
+         const isAdminSocket = Array.from(socket.rooms).includes('admin');
+        if (!isAdminSocket) {
+          console.log("username", username);
+          console.log("password", password);
+
+          socket.emit('admin:userCreated', {
+            success: false,
+            message: 'Unauthorized. Only admin can create users.'
+          });
+          return;
+        }
         // Find or create user
         let user = await User.findOne({ username });
+
+        if (user) {
+          socket.emit('admin:userCreated', {
+            success: false,
+            message: 'Username already exists'
+          });
+          return;
+        }
 
         if (!user) {
           user = new User({
             username,
-            deviceId,
-            isOnline: true
+            password,
+            // deviceId,
+            isOnline: false
           });
-        } else {
-          user.deviceId = deviceId;
-          user.isOnline = true;
-          user.lastSeen = Date.now();
         }
 
+        await user.save();
+
+         // Send success response
+        socket.emit('admin:userCreated', {
+          success: true,
+          message: 'User created successfully'
+        });
+
+        // Store user details in the active users map
+        activeUsers.set(username, {
+          socketId: socket.id,
+          userId: user._id
+        });
+
+        // Send user list to admin
+        const allUsers = await User.find({}, 'username isOnline lastSeen');
+        io.to('admin').emit('admin:userList', allUsers);
+
+      } catch (error) {
+        console.error('Login error:', error);
+        // socket.emit('user:loginError', { error: error.message });
+        socket.emit('admin:userCreated', {
+          success: false,
+          message: error.message || 'Failed to create user'
+        });
+      }
+    });
+
+    
+socket.on('admin:updateUser', async ({ originalUsername, username, password }) => {
+  try {
+    const isAdminSocket = Array.from(socket.rooms).includes('admin');
+    if (!isAdminSocket) {
+      socket.emit('admin:userUpdated', {
+        success: false,
+        message: 'Unauthorized. Only admin can update users.'
+      });
+      return;
+    }
+
+    // Find the user by original username
+    let user = await User.findOne({ username: originalUsername });
+
+    if (!user) {
+      socket.emit('admin:userUpdated', {
+        success: false,
+        message: 'User not found'
+      });
+      return;
+    }
+
+    // Check if new username already exists (if username is being changed)
+    if (username !== originalUsername) {
+      const existingUser = await User.findOne({ username });
+      if (existingUser) {
+        socket.emit('admin:userUpdated', {
+          success: false,
+          message: 'Username already exists'
+        });
+        return;
+      }
+    }
+
+    // Update user fields
+    user.username = username;
+    if (password && password.trim()) {
+      user.password = password;
+    }
+
+    await user.save();
+
+    // Send success response
+    socket.emit('admin:userUpdated', {
+      success: true,
+      message: 'User updated successfully'
+    });
+
+    // Update active users map if username changed
+    if (username !== originalUsername && activeUsers.has(originalUsername)) {
+      const userData = activeUsers.get(originalUsername);
+      activeUsers.delete(originalUsername);
+      activeUsers.set(username, userData);
+    }
+
+    // Send updated user list to admin
+    const allUsers = await User.find({}, 'username isOnline lastSeen');
+    io.to('admin').emit('admin:userList', allUsers);
+
+  } catch (error) {
+    console.error('Update user error:', error);
+    socket.emit('admin:userUpdated', {
+      success: false,
+      message: error.message || 'Failed to update user'
+    });
+  }
+});
+
+    // User authentication/login
+    socket.on('user:login', async ({ username, password, deviceId }) => {
+      console.log('User login attempt:', username, password);
+      
+      try {
+        // Find or create user
+        let user = await User.findOne({ username, password });
+
+        // If user doesn't exist
+        if (!user) {
+          socket.emit('user:loginError', {
+            error: 'Invalid username or password'
+          });
+          return;
+        }
+
+        // Check password
+        const isPasswordValid = await user.comparePassword(password);
+        if (!isPasswordValid) {
+          socket.emit('user:loginError', {
+            error: 'Invalid username or password'
+          });
+          return;
+        }
+
+        // Update user status
+        user.deviceId = deviceId;
+        user.isOnline = true;
+        user.lastSeen = Date.now();
+        await user.save();
+
+        
+        //   user.lastSeen = Date.now();
+
+        // Store user details in the active users map
+        activeUsers.set(username, {
+          socketId: socket.id,
+          userId: user._id
+        });
+
+        // Join a room with the username
+        socket.join(username);
+
+        // Send user list to admin
+        const allUsers = await User.find({}, 'username isOnline lastSeen');
+        io.to('admin').emit('admin:userList', allUsers);
+
+        // Confirm successful login to the user
+        socket.emit('user:loginSuccess', { user });
+
+        // Send admin status to the user
+        socket.emit('admin:status', { isOnline: adminIsOnline });
+
+        // Send previous messages to the user
+        const messages = await Message.find({
+          $or: [
+            { sender: username, receiver: "admin" },
+            { sender: "admin", receiver: username }
+          ]
+        }).sort({ createdAt: 1 });
+
+        socket.emit('messages:history', messages);
+      } catch (error) {
+        console.error('Login error:', error);
+        socket.emit('user:loginError', { error: error.message });
+      }
+    });
+
+     socket.on('user:islogin', async ({ username, deviceId }) => {
+      console.log('User islogin attempt:', username, deviceId);
+      
+      try {
+        // Find or create user
+        let user = await User.findOne({ username, deviceId });
+
+        // If user doesn't exist
+        if (!user) {
+          socket.emit('user:loginError', {
+            error: 'Invalid username or password'
+          });
+          return;
+        }
+        
+        //   user.lastSeen = Date.now();
+
+        user.isOnline = true;
+        user.lastSeen = Date.now();
         await user.save();
 
         // Store user details in the active users map
@@ -80,6 +279,10 @@ const setupSocket = (server) => {
         socket.emit('user:loginError', { error: error.message });
       }
     });
+
+
+
+    
 
     // Admin authentication
     socket.on('admin:login', () => {
