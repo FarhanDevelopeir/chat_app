@@ -12,7 +12,7 @@ import { CheckCircle, Star } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   Dialog,
-  DialogContent, 
+  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -66,14 +66,21 @@ const MessageBubble = ({ message, isOwnMessage }) => {
 };
 
 
-export default function ChatInterface({ isAdmin = false, selectedUser = null, users=null, dialogOpen=null, setDialogOpen= null, setUserToEdit=null, setIsEditMode=null,
-            userToEdit=null,
-            isEditMode=null,
-            newUsername=null,
-            newPassword=null,
-            setNewUsername=null,
-            setNewPassword=null,
- }) {
+export default function ChatInterface({
+  isAdmin = false,
+  selectedUser = null,
+  users = null,
+  dialogOpen = null,
+  setDialogOpen = null,
+  setUserToEdit = null,
+  setIsEditMode = null,
+  userToEdit = null,
+  isEditMode = null,
+  newUsername = null,
+  newPassword = null,
+  setNewUsername = null,
+  setNewPassword = null,
+}) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -88,7 +95,7 @@ export default function ChatInterface({ isAdmin = false, selectedUser = null, us
 
 
   // for Editing user
-  
+
 
 
   const username = isAdmin ? 'admin' : localStorage.getItem('chat_username');
@@ -477,63 +484,63 @@ export default function ChatInterface({ isAdmin = false, selectedUser = null, us
 
 
       {/* // Updated header component */}
-<div className="flex items-center justify-between p-3 bg-[#f0f2f5] border-b border-gray-200">
-  <div className="flex items-center">
-    <div className="relative">
-      <div className="w-10 h-10 rounded-full bg-[#00a884] flex items-center justify-center text-white font-medium">
-        {isAdmin ? selectedUser?.charAt(0).toUpperCase() : 'A'}
-      </div>
-      {!isAdmin && adminOnline && (
-        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-      )}
-    </div>
-    <div className="ml-3">
-      <p className="text-sm font-medium text-gray-900 flex items-center gap-1">
-        {isAdmin ? selectedUser : 'Admin Support'}
-        {!isAdmin && (
-          <img
-            src="/blue-tick.png"
-            alt="Blue Tick"
-            className="w-5 h-5"
-          />
+      <div className="flex items-center justify-between p-3 bg-[#f0f2f5] border-b border-gray-200">
+        <div className="flex items-center">
+          <div className="relative">
+            <div className="w-10 h-10 rounded-full bg-[#00a884] flex items-center justify-center text-white font-medium">
+              {isAdmin ? selectedUser?.charAt(0).toUpperCase() : 'A'}
+            </div>
+            {!isAdmin && adminOnline && (
+              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+            )}
+          </div>
+          <div className="ml-3">
+            <p className="text-sm font-medium text-gray-900 flex items-center gap-1">
+              {isAdmin ? selectedUser : 'Admin Support'}
+              {!isAdmin && (
+                <img
+                  src="/blue-tick.png"
+                  alt="Blue Tick"
+                  className="w-5 h-5"
+                />
+              )}
+            </p>
+            {typing ? (
+              <p className="text-xs text-gray-500 animate-pulse">typing...</p>
+            ) : (
+              <p className="text-xs text-gray-500">
+                {!isAdmin && (adminOnline ? 'online' : 'offline')}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Edit button - only show for admin when a user is selected */}
+        {isAdmin && selectedUser && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              // Find the selected user's data
+              const userToEdit = users.find(user => user.username === selectedUser);
+              setUserToEdit(userToEdit);
+              setIsEditMode(true);
+              setDialogOpen(true);
+            }}
+            className="flex items-center gap-2"
+          >
+            <Edit className="h-4 w-4" />
+            Edit
+          </Button>
         )}
-      </p>
-      {typing ? (
-        <p className="text-xs text-gray-500 animate-pulse">typing...</p>
-      ) : (
-        <p className="text-xs text-gray-500">
-          {!isAdmin && (adminOnline ? 'online' : 'offline')}
-        </p>
-      )}
-    </div>
-  </div>
-  
-  {/* Edit button - only show for admin when a user is selected */}
-  {isAdmin && selectedUser && (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={() => {
-        // Find the selected user's data
-        const userToEdit = users.find(user => user.username === selectedUser);
-        setUserToEdit(userToEdit);
-        setIsEditMode(true);
-        setDialogOpen(true);
-      }}
-      className="flex items-center gap-2"
-    >
-      <Edit className="h-4 w-4" />
-      Edit
-    </Button>
-  )}
-</div>
+      </div>
 
 
 
 
       {/* Messages area */}
       <div className="flex-1 p-4 overflow-y-auto" style={chatBgStyle}>
-      
+
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#00a884]"></div>
@@ -614,7 +621,15 @@ export default function ChatInterface({ isAdmin = false, selectedUser = null, us
       </form>
 
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} 
+      onOpenChange={(isOpen) => {
+    setDialogOpen(isOpen);
+    if (!isOpen) {
+      setIsEditMode(false);
+      setUserToEdit(null);
+    }
+  }}
+      >
         <CreateUser
           socket={socket}
           dialogOpen={dialogOpen}
@@ -622,12 +637,14 @@ export default function ChatInterface({ isAdmin = false, selectedUser = null, us
           newUsername={newUsername}
           setNewUsername={setNewUsername}
           newPassword={newPassword}
-          setNewPassword={setNewPassword} 
+          setNewPassword={setNewPassword}
           isEditMode={isEditMode}
           userToEdit={userToEdit}
-          />
-          
-      </Dialog> 
+          setIsEditMode={setIsEditMode}
+          setUserToEdit={setUserToEdit}
+        />
+
+      </Dialog>
     </div>
   );
 } 

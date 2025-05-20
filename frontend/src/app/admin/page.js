@@ -9,7 +9,7 @@ import UsersList from '../../components/UserList';
 import ChatInterface from '../../components/ChatInterface';
 import AdminLoginForm from '@/components/AdminLoginForm';
 import { Button } from '@/components/ui/button';
-import { 
+import {
   LogOut,
   CircleUser
 } from 'lucide-react';
@@ -31,7 +31,7 @@ export default function AdminChatPage() {
   useEffect(() => {
     const alreadyLoggedIn = localStorage.getItem('adminLoggedIn');
     if (alreadyLoggedIn === 'true' && socket) {
-      socket.emit('admin:login'); 
+      socket.emit('admin:login');
       setIsLoggedIn(true);
       setLoading(false);
     } else {
@@ -65,9 +65,9 @@ export default function AdminChatPage() {
 
   if (loading) {
     return (
-     
+
       <>
-      <ChatLoader/>
+        <ChatLoader />
       </>
     );
   }
@@ -102,13 +102,21 @@ export default function AdminChatPage() {
         </div>
 
         <div className="flex-1 overflow-hidden">
-          <ChatInterface isAdmin={true} selectedUser={selectedUser} users={users} dialogOpen={dialogOpen}  setDialogOpen={setDialogOpen} setUserToEdit={setUserToEdit} setIsEditMode={setIsEditMode} 
-          userToEdit={userToEdit}
+          <ChatInterface
+            isAdmin={true}
+            selectedUser={selectedUser}
+            users={users}
+            dialogOpen={dialogOpen}
+            setDialogOpen={setDialogOpen}
+            setUserToEdit={setUserToEdit}
+            setIsEditMode={setIsEditMode}
+            userToEdit={userToEdit}
             isEditMode={isEditMode}
             newUsername={newUsername}
             newPassword={newPassword}
             setNewUsername={setNewUsername}
             setNewPassword={setNewPassword}
+            
           />
         </div>
       </div>

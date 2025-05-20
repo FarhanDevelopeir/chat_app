@@ -12,7 +12,7 @@ export function SocketProvider({ children }) {
 
   const connect = useCallback(() => {
     // Initialize socket connection
-    const socketInstance = io('http://localhost:5000', {
+    const socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL, {
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,

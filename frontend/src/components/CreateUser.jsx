@@ -32,7 +32,7 @@
 
 //   const [isSubmitting, setIsSubmitting] = useState(false);
 
-    
+
 //   // Generate password on dialog open
 //   useEffect(() => {
 //     if (dialogOpen) {
@@ -66,7 +66,7 @@
 
 //     const handleCreateUser = async () => {
 //         console.log("create user clicked");
-        
+
 //     if (!newUsername || !newPassword) {
 //         console.log("create user clicked");
 
@@ -84,9 +84,9 @@
 //         console.log("Creating user with username:", newUsername);
 
 //         console.log("socket", socket);
-        
 
-        
+
+
 //       // Emit event to create a new user
 //       socket.emit('admin:createUser', { username: newUsername, password: newPassword });
 
@@ -222,26 +222,31 @@ const CreateUser = ({
     setNewPassword,
     isEditMode = false,
     userToEdit = null,
+    setIsEditMode = false,
+    setUserToEdit = null
     // handleCopyPassword
 }) => {
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    
-  // Generate password on dialog open (only for create mode)
-  useEffect(() => {
-    if (dialogOpen) {
-      if (isEditMode && userToEdit) {
-        // Pre-populate form with user data for edit mode
-        setNewUsername(userToEdit.username);
-        // Don't show password for security reasons, let admin generate new one if needed
-        setNewPassword('');
-      } else {
-        // Generate password for new user
-        handleGeneratePassword();
-      }
-    }
-  }, [dialogOpen, isEditMode, userToEdit])
+    console.log("userToEdit", userToEdit);
+
+
+
+    // Generate password on dialog open (only for create mode)
+    useEffect(() => {
+        if (dialogOpen) {
+            if (isEditMode && userToEdit) {
+                // Pre-populate form with user data for edit mode
+                setNewUsername(userToEdit.username);
+                // Don't show password for security reasons, let admin generate new one if needed
+                setNewPassword(userToEdit.password);
+            } else {
+                // Generate password for new user
+                handleGeneratePassword();
+            }
+        }
+    }, [dialogOpen, isEditMode, userToEdit])
 
 
     const generateStrongPassword = () => {
@@ -269,12 +274,12 @@ const CreateUser = ({
 
     const handleCreateUser = async () => {
         console.log(isEditMode ? "update user clicked" : "create user clicked");
-        
+
         if (!newUsername || (!isEditMode && !newPassword)) {
             toast({
                 title: "Error",
-                description: isEditMode 
-                    ? "Username is required" 
+                description: isEditMode
+                    ? "Username is required"
                     : "Username and password are required",
                 variant: "destructive"
             });
@@ -288,15 +293,18 @@ const CreateUser = ({
 
             if (isEditMode) {
                 // Emit event to update existing user
-                const updateData = { 
-                    originalUsername: userToEdit.username,
-                    username: newUsername 
+                const updateData = {
+                    userID: userToEdit._id,
+                    username: newUsername
                 };
-                
+
                 // Only include password if it's provided
                 if (newPassword.trim()) {
                     updateData.password = newPassword;
                 }
+
+                console.log("updateData", updateData);
+
 
                 socket.emit('admin:updateUser', updateData);
 
@@ -307,6 +315,8 @@ const CreateUser = ({
                             title: "Success",
                             description: `User ${newUsername} updated successfully`
                         });
+                        setIsEditMode(false);
+                        setUserToEdit(null);
                         setNewUsername('');
                         setNewPassword('');
                         setDialogOpen(false);
@@ -354,17 +364,19 @@ const CreateUser = ({
     };
 
     const handleDialogClose = () => {
+        setIsEditMode(false);
+        setUserToEdit(null);
         setNewUsername('');
         setNewPassword('');
         setDialogOpen(false);
     };
 
     return (
-        <DialogContent className="sm:max-w-md">
+        <DialogContent  className="sm:max-w-md">
             <DialogHeader>
                 <DialogTitle>{isEditMode ? "Edit User" : "Add New User"}</DialogTitle>
                 <DialogDescription>
-                    {isEditMode 
+                    {isEditMode
                         ? "Update user account details. Leave password empty to keep current password."
                         : "Create a new user account. The password will be set but can be changed later."
                     }
@@ -426,8 +438,8 @@ const CreateUser = ({
                     disabled={isSubmitting}
                     className="bg-[#00a884] hover:bg-[#009874]"
                 >
-                    {isSubmitting 
-                        ? (isEditMode ? "Updating..." : "Creating...") 
+                    {isSubmitting
+                        ? (isEditMode ? "Updating..." : "Creating...")
                         : (isEditMode ? "Update User" : "Create User")
                     }
                 </Button>

@@ -89,7 +89,10 @@ const setupSocket = (server) => {
     });
 
     
-socket.on('admin:updateUser', async ({ originalUsername, username, password }) => {
+socket.on('admin:updateUser', async ({ userID, username, password }) => {
+
+  console.log('Update user attempt:', userID, username, password);
+  
   try {
     const isAdminSocket = Array.from(socket.rooms).includes('admin');
     if (!isAdminSocket) {
@@ -100,8 +103,10 @@ socket.on('admin:updateUser', async ({ originalUsername, username, password }) =
       return;
     }
 
+    console.log('Update user attempt:', userID, username, password);
+
     // Find the user by original username
-    let user = await User.findOne({ username: originalUsername });
+    let user = await User.findOne({ _id: userID });
 
     if (!user) {
       socket.emit('admin:userUpdated', {
@@ -112,16 +117,16 @@ socket.on('admin:updateUser', async ({ originalUsername, username, password }) =
     }
 
     // Check if new username already exists (if username is being changed)
-    if (username !== originalUsername) {
-      const existingUser = await User.findOne({ username });
-      if (existingUser) {
-        socket.emit('admin:userUpdated', {
-          success: false,
-          message: 'Username already exists'
-        });
-        return;
-      }
-    }
+    // if (username !== originalUsername) {
+    //   const existingUser = await User.findOne({ username });
+    //   if (existingUser) {
+    //     socket.emit('admin:userUpdated', {
+    //       success: false,
+    //       message: 'Username already exists'
+    //     });
+    //     return;
+    //   }
+    // }
 
     // Update user fields
     user.username = username;
@@ -138,11 +143,11 @@ socket.on('admin:updateUser', async ({ originalUsername, username, password }) =
     });
 
     // Update active users map if username changed
-    if (username !== originalUsername && activeUsers.has(originalUsername)) {
-      const userData = activeUsers.get(originalUsername);
-      activeUsers.delete(originalUsername);
-      activeUsers.set(username, userData);
-    }
+    // if (username !== originalUsername && activeUsers.has(originalUsername)) {
+    //   const userData = activeUsers.get(originalUsername);
+    //   activeUsers.delete(originalUsername);
+    //   activeUsers.set(username, userData);
+    // }
 
     // Send updated user list to admin
     const allUsers = await User.find({}, 'username isOnline lastSeen');
@@ -202,6 +207,8 @@ socket.on('admin:updateUser', async ({ originalUsername, username, password }) =
 
         // Send user list to admin
         const allUsers = await User.find({}, 'username isOnline lastSeen');
+        console.log('allUsers', allUsers);
+        
         io.to('admin').emit('admin:userList', allUsers);
 
         // Confirm successful login to the user
