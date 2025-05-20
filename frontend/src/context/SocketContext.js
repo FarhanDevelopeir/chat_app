@@ -18,7 +18,7 @@ export function SocketProvider({ children }) {
       reconnectionDelayMax: 5000,
       timeout: 20000,
     });
-    
+     
     socketInstance.on('connect', () => {
       console.log('Socket connected');
       setConnected(true);
