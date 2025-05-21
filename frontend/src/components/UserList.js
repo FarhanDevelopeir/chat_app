@@ -626,7 +626,7 @@ export default function UsersList({
           newPassword={newPassword}
           setNewPassword={setNewPassword} 
         />
-      </Dialog> 
+      </Dialog>  
     </div>
   );
 }
