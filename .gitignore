@@ -16,6 +16,8 @@ Thumbs.db
 # Next.js build output
 frontend/.next/
 frontend/out/
+# \server
+/server/
 
 # Vite or other build outputs (if used)
 dist/
