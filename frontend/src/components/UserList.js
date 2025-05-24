@@ -40,7 +40,7 @@
 //   const [filter, setFilter] = useState('all'); // 'all' or 'unread'
 //   const [sortedUsers, setSortedUsers] = useState([]);
 //   // const [dialogOpen, setDialogOpen] = useState(false);
-  
+
 
 //   // Sort users by most recent message and apply filters
 //   useEffect(() => {
@@ -252,7 +252,7 @@
 //           // isEditMode={isEditMode}
 //           // userToEdit={userToEdit}
 //           />
-          
+
 //       </Dialog> 
 //     </div>
 //   );
@@ -291,17 +291,21 @@ import {
   SheetTrigger,
   SheetClose
 } from "@/components/ui/sheet";
+// add code for group chat
+import { Users } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
-export default function UsersList({ 
-  users, 
-  onSelectUser, 
-  selectedUser, 
-  setIsLoggedIn, 
-  socket, 
-  dialogOpen, 
-  setDialogOpen, 
-  userToEdit, 
-  isEditMode, 
+
+export default function UsersList({
+  socket,
+  users,
+  onSelectUser,
+  selectedUser,
+  setIsLoggedIn,
+  dialogOpen,
+  setDialogOpen,
+  userToEdit,
+  isEditMode,
   newUsername,
   newPassword,
   setNewUsername,
@@ -312,19 +316,23 @@ export default function UsersList({
   const [sortedUsers, setSortedUsers] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  // add code for group chat
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [selectedUsersForGroup, setSelectedUsersForGroup] = useState([]);
+  const [groupName, setGroupName] = useState('');
 
   // Check if viewing on mobile
   useEffect(() => {
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     // Initial check
     checkIfMobile();
-    
+
     // Listen for resize events
     window.addEventListener('resize', checkIfMobile);
-    
+
     return () => {
       window.removeEventListener('resize', checkIfMobile);
     };
@@ -372,6 +380,30 @@ export default function UsersList({
     setSortedUsers(filtered);
   }, [users, searchTerm, filter]);
 
+  // Add this useEffect in your UsersList component after your existing useEffects
+  useEffect(() => {
+    if (!socket) return;
+    console.log('Socket connected:', socket);
+    
+
+    // Listen for group creation response
+    socket.on('admin:groupCreated', (response) => {
+      console.log('Group creation response:', response);
+      
+      if (response.success) {
+        toast.success(response.message);
+        console.log('Group created successfully:', response.group);
+        
+      } else {
+        toast.error(response.message);
+      }
+    });
+
+    return () => {
+      socket.off('admin:groupCreated');
+    };
+  }, [socket]);
+
   const formatLastSeen = (date) => {
     if (!date) return 'Never';
 
@@ -398,6 +430,37 @@ export default function UsersList({
     socket.emit('admin:logout');
   };
 
+
+  // add code for group chat
+  // Add this function after your existing functions
+  const handleCreateGroup = () => {
+    if (!groupName.trim() || selectedUsersForGroup.length === 0) {
+      toast.error('Please provide group name and select at least one user');
+      return;
+    }
+
+    console.log('Creating group:', groupName, selectedUsersForGroup);
+
+
+    socket.emit('admin:createGroup', {
+      groupName: groupName.trim(),
+      members: selectedUsersForGroup
+    });
+
+    // Reset form
+    setGroupName('');
+    setSelectedUsersForGroup([]);
+    setGroupDialogOpen(false);
+  };
+
+  const toggleUserSelection = (username) => {
+    setSelectedUsersForGroup(prev =>
+      prev.includes(username)
+        ? prev.filter(u => u !== username)
+        : [...prev, username]
+    );
+  };
+
   // Mobile menu component
   const MobileMenu = () => (
     <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
@@ -410,28 +473,28 @@ export default function UsersList({
         <div className="p-4 bg-[#00a884] text-white">
           <div className="flex justify-between items-center mb-2">
             <h3 className="font-medium">Admin Panel</h3>
-            <SheetClose asChild>
+            {/* <SheetClose asChild>
               <Button variant="ghost" size="icon" className="text-white hover:bg-[#009874]">
                 <X className="h-5 w-5" />
               </Button>
-            </SheetClose>
+            </SheetClose> */}
           </div>
         </div>
         <div className="px-4 py-2">
           <div className="flex flex-col space-y-2">
             <SheetClose asChild>
-              <Button 
-                variant="ghost" 
-                className="justify-start" 
+              <Button
+                variant="ghost"
+                className="justify-start"
                 onClick={() => setFilter('all')}
               >
                 All Users
               </Button>
             </SheetClose>
             <SheetClose asChild>
-              <Button 
-                variant="ghost" 
-                className="justify-start" 
+              <Button
+                variant="ghost"
+                className="justify-start"
                 onClick={() => setFilter('unread')}
               >
                 Unread Messages
@@ -443,18 +506,28 @@ export default function UsersList({
               </Button>
             </SheetClose>
             <SheetClose asChild>
-              <Button 
-                variant="ghost" 
-                className="justify-start" 
+              <Button
+                variant="ghost"
+                className="justify-start"
                 onClick={() => setDialogOpen(true)}
               >
                 <UserPlus className="h-4 w-4 mr-2" /> Add New User
               </Button>
             </SheetClose>
+            {/* add code for group chat */}
+            <SheetClose asChild>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => setGroupDialogOpen(true)}
+              >
+                <Users className="h-4 w-4 mr-2" /> New Group
+              </Button>
+            </SheetClose>
             <div className="border-t border-gray-200 my-2"></div>
-            <Button 
-              variant="ghost" 
-              className="justify-start text-red-500 hover:text-red-600 hover:bg-red-50" 
+            <Button
+              variant="ghost"
+              className="justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
               onClick={handleLogout}
             >
               <LogOut className="h-4 w-4 mr-2" /> Logout
@@ -481,6 +554,14 @@ export default function UsersList({
               title="Add User"
             >
               <UserPlus className="h-5 w-5" />
+            </button>
+            {/* add code for group chat */}
+            <button
+              onClick={() => setGroupDialogOpen(true)}
+              className="hover:bg-[#f0f2f5] rounded-full p-2 cursor-pointer hidden md:block"
+              title="New Group"
+            >
+              <Users className="h-5 w-5" />
             </button>
             <button
               onClick={handleLogout}
@@ -528,16 +609,28 @@ export default function UsersList({
             </Button>
           </div>
 
+          <div className="flex space-x-2">
+
           <Button
             variant="default"
             size="sm"
-            className="bg-[#00a884] hover:bg-[#009874]"
+            className="bg-[#00a884] hover:bg-[#009874] text-xs "
             onClick={() => setDialogOpen(true)}
           >
             <UserPlus className="h-4 w-4 mr-1" /> Add User
           </Button>
+          {/* add code for group chat */}
+          <Button
+            variant="default"
+            size="sm"
+            className="bg-[#00a884] hover:bg-[#009874] text-xs "
+            onClick={() => setGroupDialogOpen(true)}
+          >
+            <Users className="h-4 w-4 mr-1" /> New Group
+          </Button>
+          </div>
         </div>
-        
+
         {/* Mobile filters - simple text displays */}
         <div className="flex justify-between items-center mt-2 md:hidden">
           <div className="text-sm font-medium text-slate-600">
@@ -552,7 +645,7 @@ export default function UsersList({
       </div>
 
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-[calc(100vh-140px)] md:h-[calc(100vh-220px)]">
+        <ScrollArea className="h-[calc(100vh-140px)] md:h-[calc(100vh-220px)] ">
           {sortedUsers.length === 0 ? (
             <div className="p-4 text-center text-slate-500">
               {filter === 'unread' ? 'No unread messages' : 'No users available'}
@@ -624,9 +717,76 @@ export default function UsersList({
           newUsername={newUsername}
           setNewUsername={setNewUsername}
           newPassword={newPassword}
-          setNewPassword={setNewPassword} 
+          setNewPassword={setNewPassword}
         />
-      </Dialog>  
+      </Dialog>
+
+      {/* Group Chat Dialog */}
+      <Dialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Group</DialogTitle>
+            <DialogDescription>
+              Select users to add to the group and provide a group name.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Group Name</label>
+              <Input
+                placeholder="Enter group name"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Select Members</label>
+              {/* <ScrollArea className="max-h-60 mt-2 "> */}
+              <ScrollArea className="h-72">
+                {users.map((user) => (
+                  <div key={user.username} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                    <Checkbox
+                      id={user.username}
+                      checked={selectedUsersForGroup.includes(user.username)}
+                      onCheckedChange={() => toggleUserSelection(user.username)}
+                    />
+                    <div className="flex items-center gap-2 flex-1">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-[#00a884] text-white text-xs">
+                          {user.username.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm">{user.username}</span>
+                      {user.isOnline && (
+                        <Circle className="h-2 w-2 fill-green-500 text-green-500" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </ScrollArea>
+            </div>
+
+            <div className="text-xs text-gray-500">
+              {selectedUsersForGroup.length} user(s) selected
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGroupDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateGroup}
+              disabled={!groupName.trim() || selectedUsersForGroup.length === 0}
+              className="bg-[#00a884] hover:bg-[#009874]"
+            >
+              Create Group
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -18,11 +18,11 @@
 //     // Check if user is already logged in
 //     const username = localStorage.getItem('chat_username');
 //     const deviceId = localStorage.getItem('chat_device_id');
-    
+
 //     if (username && deviceId) {
 //       setIsLoggedIn(true);
 //     }
-    
+
 //     setLoading(false);
 //   }, []);
 
@@ -52,14 +52,14 @@
 
 //   if (loading) {
 //     return (
-   
+
 //       <>
 //       <ChatLoader/>
 //       </>
 //     );
 //   }
 
-  
+
 
 //   return (
 //     <div className="flex h-screen bg-[#f0f2f5]">
@@ -68,7 +68,7 @@
 //                 <UserLogin onSuccess={() => setIsLoggedIn(true)} />
 //               </div>
 //             )}
-      
+
 //           {/* Sidebar */}
 //           <div className="w-1/4 bg-white border-r border-gray-200">
 //             <div className="bg-[#00a884] text-white p-4 flex justify-between items-center">
@@ -86,7 +86,7 @@
 //                 <LogOut className="h-5 w-5" />
 //               </button>
 //             </div>
-            
+
 //             {/* Chat list - Currently only admin chat */}
 //             <div className="cursor-pointer hover:bg-gray-100 p-3 border-b border-gray-200">
 //               <div className="flex items-center">
@@ -114,13 +114,13 @@
 //               </div>
 //             </div>
 //           </div>
-          
+
 //           {/* Chat Area */}
 //           <div className="flex-1 flex flex-col">
 //             <ChatInterface />
 //           </div>
-        
-     
+
+
 //     </div>
 //   );
 // }
@@ -144,19 +144,22 @@ export default function UserChatPage() {
   const [showChat, setShowChat] = useState(false); // For mobile view transitions
   const [isMobile, setIsMobile] = useState(false); // Track if we're on mobile
   const { socket } = useSocket();
+  // chat groups
+  const [userGroups, setUserGroups] = useState([]);
+  const [selectedChat, setSelectedChat] = useState(null); // 'admin' or groupId
 
   // Check for mobile viewports
   useEffect(() => {
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     // Initial check
     checkIfMobile();
-    
+
     // Listen for resize events
     window.addEventListener('resize', checkIfMobile);
-    
+
     return () => {
       window.removeEventListener('resize', checkIfMobile);
     };
@@ -166,11 +169,11 @@ export default function UserChatPage() {
     // Check if user is already logged in
     const username = localStorage.getItem('chat_username');
     const deviceId = localStorage.getItem('chat_device_id');
-    
+
     if (username && deviceId) {
       setIsLoggedIn(true);
     }
-    
+
     setLoading(false);
   }, []);
 
@@ -200,6 +203,48 @@ export default function UserChatPage() {
     };
   }, [socket, isMobile, showChat]);
 
+  // chat groups
+
+  // Add this useEffect after your existing useEffects
+  useEffect(() => {
+    if (!socket || !isLoggedIn) return;
+
+    const username = localStorage.getItem('chat_username');
+
+    // Request user's groups
+    socket.emit('user:getGroups', username);
+
+    // Listen for group list
+    socket.on('user:groupList', (groups) => {
+      setUserGroups(groups);
+      console.log('User groups:', groups);
+
+    });
+
+    // Listen for new groups
+    socket.on('group:created', (data) => {
+      setUserGroups(prev => [...prev, data.group]);
+      // Show notification toast
+      console.log(data.message);
+    });
+
+    // Listen for group member left
+    socket.on('group:memberLeft', ({ groupId, username: leftUsername }) => {
+      // Update group members in state if needed
+      setUserGroups(prev => prev.map(group =>
+        group.groupId === groupId
+          ? { ...group, members: group.members.filter(m => m !== leftUsername) }
+          : group
+      ));
+    });
+
+    return () => {
+      socket.off('user:groupList');
+      socket.off('group:created');
+      socket.off('group:memberLeft');
+    };
+  }, [socket, isLoggedIn]);
+
   // Function to handle logout
   const handleLogout = () => {
     localStorage.removeItem('chat_username');
@@ -214,7 +259,13 @@ export default function UserChatPage() {
   }
 
   // Mobile view handler
-  const handleChatSelect = () => {
+  // const handleChatSelect = () => {
+  //   setShowChat(true);
+  // };
+  // chat groups
+  // Update your handleChatSelect function
+  const handleChatSelect = (chatType, chatId = null) => {
+    setSelectedChat(chatType === 'admin' ? 'admin' : chatId);
     setShowChat(true);
   };
 
@@ -229,7 +280,7 @@ export default function UserChatPage() {
           <UserLogin onSuccess={() => setIsLoggedIn(true)} />
         </div>
       )}
-      
+
       {/* Sidebar - Hidden on mobile when chat is showing */}
       <div className={`${isMobile && showChat ? 'hidden' : 'w-full md:w-1/4'} bg-white h-full flex flex-col`}>
         {/* Header */}
@@ -250,7 +301,7 @@ export default function UserChatPage() {
         </div>
 
         {/* Chat list - Currently only admin chat */}
-        <div 
+        <div
           className="cursor-pointer hover:bg-gray-100 p-3 border-b border-gray-200 flex justify-between items-center"
           onClick={handleChatSelect}
         >
@@ -277,13 +328,38 @@ export default function UserChatPage() {
               </p>
             </div>
           </div>
-          
+
           {/* Mobile only arrow */}
           {isMobile && (
             <ChevronRight className="h-5 w-5 text-gray-400" />
           )}
         </div>
-        
+
+        {/* Group Chats */}
+        {userGroups.map((group) => (
+          <div
+            key={group.groupId}
+            className="cursor-pointer hover:bg-gray-100 p-3 border-b border-gray-200 flex justify-between items-center"
+            onClick={() => handleChatSelect('group', group.groupId)}
+          >
+            <div className="flex items-center">
+              <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                {group.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="ml-3">
+                <p className="font-medium text-gray-900">{group.name}</p>
+                <p className="text-sm text-gray-500">
+                  {group.members.length} members
+                </p>
+              </div>
+            </div>
+
+            {isMobile && (
+              <ChevronRight className="h-5 w-5 text-gray-400" />
+            )}
+          </div>
+        ))}
+
         {/* Empty state for mobile */}
         {isMobile && (
           <div className="flex-1 flex flex-col items-center justify-center p-4 bg-[#f0f2f5]">
@@ -299,7 +375,10 @@ export default function UserChatPage() {
           </div>
         )}
       </div>
-      
+
+
+
+
       {/* Chat Area - Full width on mobile when showing chat */}
       <div className={`${isMobile && !showChat ? 'hidden' : 'w-full'} md:flex-1 flex flex-col`}>
         <ChatInterface onBackClick={isMobile ? handleBackClick : null} />
