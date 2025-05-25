@@ -3,6 +3,8 @@
 
 # Environment files
 **/.env
+chat-app-backend/
+server/
 
 # Logs
 logs
