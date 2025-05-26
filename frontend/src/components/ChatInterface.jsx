@@ -265,7 +265,7 @@ export default function ChatInterface({
 
         console.log('message', message)
 
-        showNotification(message);
+        // showNotification(message);
 
         // Add the new message
         const newMessages = [...prevMessages, message];
