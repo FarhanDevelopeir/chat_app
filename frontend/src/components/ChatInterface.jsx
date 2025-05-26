@@ -109,8 +109,64 @@ export default function ChatInterface({
   const typingTimeout = useRef(null);
   const [showOptions, setShowOptions] = useState(false);
 
+  const [notificationPermission, setNotificationPermission] = useState('default');
+  const [isTabActive, setIsTabActive] = useState(true);
+
   const username = isAdmin ? 'admin' : localStorage.getItem('chat_username');
   const receiver = isAdmin ? selectedUser : 'admin';
+
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      try {
+        const permission = await Notification.requestPermission();
+        setNotificationPermission(permission);
+        return permission;
+      } catch (error) {
+        console.log('Notification permission error:', error);
+        return 'denied';
+      }
+    }
+    return 'denied';
+  }
+
+
+
+  const showNotification = (message) => {
+    if (isTabActive || message.sender === username) {
+      return;
+    }
+
+    if (notificationPermission === 'granted' || notificationPermission === 'default') {
+      const senderName = isAdmin ? message.sender : 'Admin Support';
+      let notificationBody = '';
+
+      if (message.audio) {
+        notificationBody = '🎵 Voice message';
+      } else if (message.file) {
+        notificationBody = message.file.type === 'image' ? '📷 Image' : '📎 File';
+      } else {
+        notificationBody = message.content;
+      }
+
+      const notification = new Notification(senderName, {
+        body: notificationBody,
+        icon: '/chat-icon.png', // Add your chat app icon
+        badge: '/chat-badge.png', // Small badge icon for mobile
+        tag: `chat-${message.sender}`, // Prevents duplicate notifications
+        requireInteraction: false,
+        silent: false
+      });
+
+      setTimeout(() => {
+        notification.close();
+      }, 5000);
+
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+    }
+  };
 
   const removeDuplicateMessages = (messages) => {
     const uniqueMessages = [];
@@ -128,19 +184,37 @@ export default function ChatInterface({
     return uniqueMessages;
   };
 
-  // Scroll to bottom when messages change
+  useEffect(() => {
+    requestNotificationPermission();
+
+    const handleVisibilityChange = () => {
+      setIsTabActive(!document.hidden);
+    };
+
+    const handleFocus = () => setIsTabActive(true);
+    const handleBlur = () => setIsTabActive(false);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Focus on input when chat opens
   useEffect(() => {
     if (!loading) {
       messageInputRef.current?.focus();
     }
   }, [loading, isAdmin, selectedUser]);
 
-  // Update useEffect to handle messages
   useEffect(() => {
     if (!socket) return;
 
@@ -184,16 +258,19 @@ export default function ChatInterface({
     // If message already exists, don't add it again
     if (messageExists) return prevMessages;
 
-    // For admin, only show messages related to the selected user
-    if (isAdmin && message.sender !== selectedUser && message.receiver !== selectedUser) {
-      return prevMessages;
-    }
+        // For admin, only show messages related to the selected user
+        if (isAdmin && message.sender !== selectedUser && message.receiver !== selectedUser) {
+          return prevMessages;
+        }
 
-    // For regular users, accept all messages (remove the mobile-specific filtering)
-    // The message should be added regardless of mobile view state
-    
-    // Add the new message
-    const newMessages = [...prevMessages, message];
+        console.log('message', message)
+
+        showNotification(message);
+
+        // Add the new message
+        const newMessages = [...prevMessages, message];
+
+        
 
     // Ensure no duplicates
     return removeDuplicateMessages(newMessages);
@@ -429,14 +506,14 @@ export default function ChatInterface({
         <div className="flex items-center">
           {/* Back button for mobile */}
           {onBackClick && (
-            <button 
+            <button
               onClick={onBackClick}
               className="p-1 mr-2 text-white md:hidden"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
           )}
-          
+
           <div className="relative">
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-[#00a884] flex items-center justify-center text-white font-medium">
               {isAdmin ? selectedUser?.charAt(0).toUpperCase() : 'A'}
@@ -445,7 +522,7 @@ export default function ChatInterface({
               <div className="absolute bottom-0 right-0 w-2 h-2 md:w-3 md:h-3 bg-green-500 rounded-full border-2 border-[#008069] md:border-white"></div>
             )}
           </div>
-          
+
           <div className="ml-2 md:ml-3">
             <p className="text-xs md:text-sm font-medium text-white md:text-gray-900 flex items-center gap-1">
               {isAdmin ? selectedUser : 'Admin Support'}
@@ -461,7 +538,7 @@ export default function ChatInterface({
               <p className="text-xs text-gray-200 md:text-gray-500 animate-pulse">typing...</p>
             ) : (
               <p className="text-xs text-gray-200 md:text-gray-500">
-                {!isAdmin && (adminOnline ? 'online' : 'offline')}
+                {/* {!isAdmin && (adminOnline ? 'online' : 'offline')} */}
               </p>
             )}
           </div>
@@ -478,7 +555,7 @@ export default function ChatInterface({
               <Phone className="h-5 w-5" />
             </button>
           </div>
-          
+
           {/* Options menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -506,7 +583,7 @@ export default function ChatInterface({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          
+
           {/* Edit button - only show for admin when a user is selected (desktop only) */}
           {isAdmin && selectedUser && (
             <Button
@@ -563,12 +640,12 @@ export default function ChatInterface({
       {/* Message input - Mobile optimized */}
       <form onSubmit={handleSubmit} className="p-1.5 md:p-2 bg-[#f0f2f5]">
         <div className="flex items-center rounded-full bg-white p-1">
-          <button
+          {/* <button
             type="button"
             className="p-1.5 md:p-2 text-gray-500 hover:text-gray-700 rounded-full"
           >
             <Smile className="h-5 w-5" />
-          </button>
+          </button> */}
 
           <FileUpload onUpload={handleFileUpload} />
 
@@ -606,7 +683,7 @@ export default function ChatInterface({
         )}
       </form>
 
-      <Dialog open={dialogOpen} 
+      <Dialog open={dialogOpen}
         onOpenChange={(isOpen) => {
           setDialogOpen(isOpen);
           if (!isOpen) {

@@ -1,3 +1,5 @@
+
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -10,6 +12,7 @@ const VoiceRecorder = ({ onSendVoice }) => {
     const [audioBlob, setAudioBlob] = useState(null);
     const [audioUrl, setAudioUrl] = useState(null);
     const [isReviewing, setIsReviewing] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
 
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
@@ -37,6 +40,26 @@ const VoiceRecorder = ({ onSendVoice }) => {
 
         return () => clearInterval(timerRef.current);
     }, [isRecording, isPaused]);
+
+    // Handle audio playback events
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (audio) {
+            const handlePlay = () => setIsPlaying(true);
+            const handlePause = () => setIsPlaying(false);
+            const handleEnded = () => setIsPlaying(false);
+
+            audio.addEventListener('play', handlePlay);
+            audio.addEventListener('pause', handlePause);
+            audio.addEventListener('ended', handleEnded);
+
+            return () => {
+                audio.removeEventListener('play', handlePlay);
+                audio.removeEventListener('pause', handlePause);
+                audio.removeEventListener('ended', handleEnded);
+            };
+        }
+    }, [audioUrl]);
 
     const formatTime = (seconds) => {
         const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -88,9 +111,30 @@ const VoiceRecorder = ({ onSendVoice }) => {
         }
     };
 
-    const stopRecording = () => {
+    const stopRecordingAndSend = () => {
         if (mediaRecorderRef.current && isRecording) {
+            // Stop recording first
             mediaRecorderRef.current.stop();
+            
+            // Add a small delay to ensure the blob is ready, then send
+            setTimeout(() => {
+                if (audioChunksRef.current.length > 0) {
+                    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.readAsDataURL(audioBlob);
+                    reader.onloadend = () => {
+                        const base64data = reader.result;
+                        onSendVoice({
+                            type: 'audio',
+                            name: `Voice Message (${formatTime(recordingTime)})`,
+                            data: base64data,
+                            size: audioBlob.size,
+                        });
+                        // Reset state
+                        cancelRecording();
+                    };
+                }
+            }, 100);
         }
     };
 
@@ -104,14 +148,12 @@ const VoiceRecorder = ({ onSendVoice }) => {
         }
     };
 
-    // Note: Not all browsers support pausing MediaRecorder
     const togglePause = () => {
         try {
             pauseRecording();
         } catch (err) {
             console.error('Pausing not supported in this browser:', err);
-            // Fallback to stopping if pausing is not supported
-            stopRecording();
+            stopRecordingAndSend();
         }
     };
 
@@ -140,16 +182,12 @@ const VoiceRecorder = ({ onSendVoice }) => {
             reader.readAsDataURL(audioBlob);
             reader.onloadend = () => {
                 const base64data = reader.result;
-
-                // Send voice message
                 onSendVoice({
                     type: 'audio',
                     name: `Voice Message (${formatTime(recordingTime)})`,
                     data: base64data,
                     size: audioBlob.size,
                 });
-
-                // Reset state
                 cancelRecording();
             };
         }
@@ -165,95 +203,152 @@ const VoiceRecorder = ({ onSendVoice }) => {
         }
     };
 
-    // Recording button
+    // Recording button (initial state) - Mobile first
     if (!isRecording && !isReviewing) {
         return (
             <button
                 type="button"
                 onClick={startRecording}
-                className="p-2 text-gray-500 hover:text-gray-700 rounded-full transition-colors"
+                className="flex-shrink-0 p-2 text-gray-600 hover:text-[#00a884] rounded-full transition-all duration-200 hover:bg-gray-100 active:scale-95 touch-manipulation"
+                aria-label="Start voice recording"
             >
                 <Mic className="h-5 w-5" />
             </button>
         );
     }
 
-    // Recording in progress UI
+    // Recording in progress UI - WhatsApp mobile style
     if (isRecording) {
         return (
-            <div className="flex items-center space-x-2 bg-gray-100 rounded-full px-3 py-1">
-                <div className="flex-shrink-0">
-                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+            <div className="fixed inset-x-0 bottom-0 z-50 bg-white border-t shadow-lg md:relative md:inset-auto md:border md:rounded-full md:shadow-md md:max-w-sm md:mx-auto">
+                <div className="flex items-center px-4 py-3 md:px-3 md:py-2">
+                    {/* Recording indicator */}
+                    <div className="flex items-center space-x-3 flex-1 min-w-0 md:space-x-2">
+                        <div className="flex-shrink-0 w-3 h-3 bg-red-500 rounded-full animate-pulse md:w-2 md:h-2"></div>
+                        
+                        {/* Timer */}
+                        <div className="text-base font-medium text-gray-800 whitespace-nowrap md:text-sm">
+                            {formatTime(recordingTime)}
+                        </div>
+                        
+                        {/* Audio wave animation - Hidden on very small screens */}
+                        <div className="hidden xs:flex items-center space-x-1 flex-1 min-w-0">
+                            {[...Array(8)].map((_, i) => (
+                                <div
+                                    key={i}
+                                    className="w-1 bg-[#00a884] rounded-full animate-pulse"
+                                    style={{
+                                        height: `${Math.random() * 16 + 8}px`,
+                                        animationDelay: `${i * 0.1}s`
+                                    }}
+                                ></div>
+                            ))}
+                        </div>
+
+                        {/* Mobile-only slide to cancel text */}
+                        <div className="text-sm text-gray-500 md:hidden">
+                            ← Slide to cancel
+                        </div>
+                    </div>
+
+                    {/* Control buttons */}
+                    <div className="flex items-center space-x-3 flex-shrink-0 md:space-x-2">
+                        {/* Pause/Resume button */}
+                        <button
+                            type="button"
+                            onClick={togglePause}
+                            className="p-2 text-gray-600 hover:text-gray-800 rounded-full hover:bg-gray-100 transition-colors touch-manipulation active:scale-95 md:p-1.5"
+                            aria-label={isPaused ? "Resume recording" : "Pause recording"}
+                        >
+                            {isPaused ? <Play className="h-5 w-5 md:h-4 md:w-4" /> : <Pause className="h-5 w-5 md:h-4 md:w-4" />}
+                        </button>
+
+                        {/* Send button */}
+                        <button
+                            type="button"
+                            onClick={stopRecordingAndSend}
+                            className="p-2 text-white bg-[#00a884] hover:bg-[#008c6f] rounded-full transition-colors shadow-md active:scale-95 touch-manipulation md:p-1.5"
+                            aria-label="Send voice message"
+                        >
+                            <Send className="h-5 w-5 md:h-4 md:w-4" />
+                        </button>
+
+                        {/* Cancel button */}
+                        <button
+                            type="button"
+                            onClick={cancelRecording}
+                            className="p-2 text-gray-600 hover:text-red-500 rounded-full hover:bg-gray-100 transition-colors touch-manipulation active:scale-95 md:p-1.5"
+                            aria-label="Cancel recording"
+                        >
+                            <X className="h-5 w-5 md:h-4 md:w-4" />
+                        </button>
+                    </div>
                 </div>
-
-                <div className="text-sm font-medium">
-                    {formatTime(recordingTime)}
-                </div>
-
-                <button
-                    type="button"
-                    onClick={togglePause}
-                    className="p-1.5 text-gray-500 hover:text-gray-700 rounded-full"
-                >
-                    {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                </button>
-
-                <button
-                    type="button"
-                    onClick={stopRecording}
-                    className="p-1.5 text-white bg-[#00a884] rounded-full"
-                >
-                    <Send className="h-4 w-4" />
-                </button>
-
-                <button
-                    type="button"
-                    onClick={cancelRecording}
-                    className="p-1.5 text-gray-500 hover:text-gray-700 rounded-full"
-                >
-                    <X className="h-4 w-4" />
-                </button>
             </div>
         );
     }
 
-    // Review recorded audio UI
+    // Review recorded audio UI - WhatsApp mobile style
     if (isReviewing) {
         return (
-            <div className="flex items-center space-x-2 bg-gray-100 rounded-full px-3 py-1">
-                <audio ref={audioRef} src={audioUrl} className="hidden" />
+            <div className="fixed inset-x-0 bottom-0 z-50 bg-white border-t shadow-lg md:relative md:inset-auto md:border md:rounded-full md:shadow-md md:max-w-sm md:mx-auto">
+                <div className="flex items-center px-4 py-3 md:px-3 md:py-2">
+                    <audio ref={audioRef} src={audioUrl} className="hidden" />
 
-                <button
-                    type="button"
-                    onClick={togglePlayback}
-                    className="p-1.5 text-gray-500 hover:text-gray-700 rounded-full"
-                >
-                    <Play className="h-4 w-4" />
-                </button>
+                    {/* Play/Pause button */}
+                    <button
+                        type="button"
+                        onClick={togglePlayback}
+                        className="flex-shrink-0 p-2 text-[#00a884] hover:text-[#008c6f] rounded-full hover:bg-gray-100 transition-colors touch-manipulation active:scale-95 md:p-1.5"
+                        aria-label={isPlaying ? "Pause playback" : "Play recording"}
+                    >
+                        {isPlaying ? <Pause className="h-6 w-6 md:h-5 md:w-5" /> : <Play className="h-6 w-6 md:h-5 md:w-5" />}
+                    </button>
 
-                <div className="flex-1 h-1 bg-gray-300 rounded-full overflow-hidden">
-                    <div className="h-full bg-[#00a884] rounded-full" style={{ width: '100%' }}></div>
+                    {/* Waveform visualization */}
+                    <div className="flex items-center flex-1 mx-4 min-w-0 md:mx-3">
+                        <div className="flex items-center space-x-1 flex-1">
+                            {[...Array(20)].map((_, i) => (
+                                <div
+                                    key={i}
+                                    className="w-1 bg-gray-300 rounded-full transition-colors"
+                                    style={{
+                                        height: `${Math.random() * 16 + 6}px`,
+                                        backgroundColor: i < (isPlaying ? 15 : 10) ? '#00a884' : '#e5e7eb'
+                                    }}
+                                ></div>
+                            ))}
+                        </div>
+                        
+                        {/* Duration */}
+                        <div className="text-sm font-medium text-gray-600 ml-3 whitespace-nowrap md:text-xs md:ml-2">
+                            {formatTime(recordingTime)}
+                        </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex items-center space-x-3 flex-shrink-0 md:space-x-2">
+                        {/* Send button */}
+                        <button
+                            type="button"
+                            onClick={handleSendVoice}
+                            className="p-2 text-white bg-[#00a884] hover:bg-[#008c6f] rounded-full transition-colors shadow-md active:scale-95 touch-manipulation md:p-1.5"
+                            aria-label="Send voice message"
+                        >
+                            <Send className="h-5 w-5 md:h-4 md:w-4" />
+                        </button>
+
+                        {/* Delete button */}
+                        <button
+                            type="button"
+                            onClick={cancelRecording}
+                            className="p-2 text-gray-600 hover:text-red-500 rounded-full hover:bg-gray-100 transition-colors touch-manipulation active:scale-95 md:p-1.5"
+                            aria-label="Delete recording"
+                        >
+                            <Trash className="h-5 w-5 md:h-4 md:w-4" />
+                        </button>
+                    </div>
                 </div>
-
-                <div className="text-xs font-medium">
-                    {formatTime(recordingTime)}
-                </div>
-
-                <button
-                    type="button"
-                    onClick={handleSendVoice}
-                    className="p-1.5 text-white bg-[#00a884] rounded-full"
-                >
-                    <Send className="h-4 w-4" />
-                </button>
-
-                <button
-                    type="button"
-                    onClick={cancelRecording}
-                    className="p-1.5 text-gray-500 hover:text-red-500 rounded-full"
-                >
-                    <Trash className="h-4 w-4" />
-                </button>
             </div>
         );
     }
