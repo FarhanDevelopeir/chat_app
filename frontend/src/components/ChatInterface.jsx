@@ -734,9 +734,11 @@ export default function ChatInterface({
 
 
   const showNotification = (message) => {
-    if (isTabActive || message.sender === username) {
-      return;
-    }
+    // if (isTabActive || message.sender === username) {
+    //   return;
+    // }
+
+    console.log('message in notification', message)
 
     if (notificationPermission === 'granted' || notificationPermission === 'default') {
       const senderName = isAdmin ? message.sender : 'Admin Support';
@@ -752,8 +754,8 @@ export default function ChatInterface({
 
       const notification = new Notification(senderName, {
         body: notificationBody,
-        icon: '/chat-icon.png', // Add your chat app icon
-        badge: '/chat-badge.png', // Small badge icon for mobile
+        icon: '/messenger.png', // Add your chat app icon
+        badge: '/verify.png', // Small badge icon for mobile
         tag: `chat-${message.sender}`, // Prevents duplicate notifications
         requireInteraction: false,
         silent: false
@@ -859,7 +861,7 @@ export default function ChatInterface({
           return prevMessages;
         }
 
-        console.log('message', message)
+        console.log('notificationPermission', notificationPermission)
 
         showNotification(message);
 
