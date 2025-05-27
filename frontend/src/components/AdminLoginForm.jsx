@@ -26,6 +26,7 @@ export default function AdminLoginForm({ onSuccess }) {
     setLoading(true);
     setError('');
     socket.emit('admin:loginAttempt', { username, password });
+
   };
   
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function AdminLoginForm({ onSuccess }) {
       setLoading(false);
       localStorage.setItem('adminLoggedIn', 'true');
       onSuccess();
+      window.location.reload(); // Reload to apply admin privileges
     };
 
     const handleLoginFailure = () => {
