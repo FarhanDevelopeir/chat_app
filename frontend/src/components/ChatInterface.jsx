@@ -607,7 +607,7 @@ export default function ChatInterface({
       </div>
 
       {/* Messages area */}
-      <div className="flex-1 p-2 pt-4  mt-12 md:mt-0 md:p-4 overflow-y-auto" style={chatBgStyle}>
+      <div className="flex-1 p-2 pt-4 mb-12  mt-12 md:mt-0 md:mb-0 md:p-4 overflow-y-auto" style={chatBgStyle}>
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#00a884]"></div>
