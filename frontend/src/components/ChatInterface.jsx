@@ -504,7 +504,7 @@ export default function ChatInterface({
   return (
     <div className="flex flex-col h-full">
       {/* Mobile-optimized header component */}
-      <div className="flex items-center justify-between p-2.5 md:p-3 bg-[#008069] md:bg-[#f0f2f5] border-b border-gray-200 text-white md:text-black">
+      <div className="flex fixed w-full top-0 right-0 md:static md:w-auto items-center justify-between p-2.5 md:p-3 bg-[#008069] md:bg-[#f0f2f5] border-b border-gray-200 text-white md:text-black">
         <div className="flex items-center">
           {/* Back button for mobile */}
           {onBackClick && (
@@ -549,14 +549,14 @@ export default function ChatInterface({
         {/* Action buttons */}
         <div className="flex items-center space-x-3">
           {/* Call buttons - Mobile only */}
-          <div className="md:hidden flex items-center">
+          {/* <div className="md:hidden flex items-center">
             <button className="text-white p-1">
               <Video className="h-5 w-5" />
             </button>
             <button className="text-white p-1">
               <Phone className="h-5 w-5" />
             </button>
-          </div>
+          </div> */}
 
           {/* Options menu */}
           <DropdownMenu>
@@ -607,7 +607,7 @@ export default function ChatInterface({
       </div>
 
       {/* Messages area */}
-      <div className="flex-1 p-2 md:p-4 overflow-y-auto" style={chatBgStyle}>
+      <div className="flex-1 p-2 pt-4  mt-12 md:mt-0 md:p-4 overflow-y-auto" style={chatBgStyle}>
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#00a884]"></div>
@@ -640,8 +640,8 @@ export default function ChatInterface({
       )}
 
       {/* Message input - Mobile optimized */}
-      <form onSubmit={handleSubmit} className="p-1.5 md:p-2 bg-[#f0f2f5]">
-        <div className="flex items-center rounded-full bg-white p-1">
+      <form onSubmit={handleSubmit} className="p-1.5 md:p-2 bg-[#f0f2f5] fixed w-full bottom-0 right-0 md:static md:w-auto">
+        <div className="flex items-center rounded-full bg-white p-1 " >
           {/* <button
             type="button"
             className="p-1.5 md:p-2 text-gray-500 hover:text-gray-700 rounded-full"
