@@ -15,7 +15,12 @@ import {
   MoreVertical,
   Phone,
   Video,
-  Users
+  Users,
+  Plus,
+  X,
+  Trash2,
+  ChevronDown,
+  Reply
 } from 'lucide-react';
 import FileMessage from './FileMessage';
 import FileUpload from './FileUpload';
@@ -38,8 +43,25 @@ import {
 } from "@/components/ui/dropdown-menu";
 import CreateUser from './CreateUser';
 import CreateGroupDialog from './GroupDialogue'; // Import your CreateGroup component
+import { scrollToMessage } from './utils/ChatInterface_functions';
+// Add these new states at the top of your component
 
-const MessageBubble = ({ message, isOwnMessage, isGroupChat = false }) => {
+
+
+// Updated MessageBubble component with WhatsApp-style emoji reactions
+const MessageBubble = ({
+  message,
+  isOwnMessage, isGroupChat = false,
+  isAdmin,
+  showEmojiPicker,
+  setShowEmojiPicker,
+  handleDeleteMessage,
+  handleReplyMessage,
+  handleEmojiReaction,
+  scrollToMessage,
+  username
+
+}) => {
   const formattedTime = new Date(message.createdAt).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit'
@@ -47,15 +69,36 @@ const MessageBubble = ({ message, isOwnMessage, isGroupChat = false }) => {
 
   const isFileMessage = message.file !== undefined;
   const isVoiceMessage = message.audio !== undefined;
+  const [showDropdown, setShowDropdown] = useState(null);
 
   return (
-    <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-2`}>
-      <div
-        className={`px-3 py-2 rounded-lg max-w-[80%] md:max-w-[70%] break-words ${isOwnMessage
-          ? 'bg-[#d9fdd3] text-gray-800'
-          : 'bg-white text-gray-800'
-          }`}
-      >
+    <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-2 relative`}>
+      <div className={`relative ${message.replyTo ? '' : 'flex justify-between items-center'}   px-4  py-4 rounded-lg max-w-[80%] md:max-w-[70%] break-words group ${isOwnMessage
+        ? 'bg-[#d9fdd3] text-gray-800'
+        : 'bg-white text-gray-800'
+        } ${message.isDeleted ? 'italic text-gray-500' : ''}`}>
+        {/* 
+        {message.replyTo && (
+          <div className="bg-gray-50 border-l-4 border-blue-500 p-2 mb-2 rounded">
+            <p className="text-xs text-blue-600 font-medium">{message.replyTo.sender}</p>
+            <p className="text-sm text-gray-600 truncate">{message.replyTo.content}</p>
+          </div>
+        )}
+        
+        */}
+
+        {message.replyTo && (
+          <div
+            onClick={() => scrollToMessage(message.replyTo.messageId)}
+            className="bg-gray-50 border-l-4 border-blue-500 p-2 mb-2 rounded cursor-pointer hover:bg-gray-100 transition-colors"
+          >
+            <p className="text-xs text-blue-600 font-medium">{message.replyTo.sender}</p>
+            <p className="text-sm text-gray-600 truncate">{message.replyTo.content}</p>
+          </div>
+        )}
+
+        {/* Message content */}
+        <div className="break-words">
         {/* Show sender name in group chat if not own message */}
         {isGroupChat && !isOwnMessage && (
           <p className="text-xs font-semibold text-[#00a884] mb-1">
@@ -63,26 +106,147 @@ const MessageBubble = ({ message, isOwnMessage, isGroupChat = false }) => {
           </p>
         )}
 
-        {isVoiceMessage ? (
-          <AudioMessage audioData={message.audio.data} />
-        ) : isFileMessage ? (
-          <FileMessage file={message.file} />
-        ) : (
-          <p className="mb-1 text-sm md:text-base">{message.content}</p>
-        )}
+          {isVoiceMessage ? (
+            <AudioMessage audioData={message.audio.data} />
+          ) : isFileMessage ? (
+            <FileMessage file={message.file} />
+          ) : (
+            <p className="mb-1 text-sm md:text-base">{message.content}</p>
+          )}
+        </div>
 
-        <div className="flex items-center justify-end text-xs text-gray-500 mt-1">
+        {/* Message timestamp and read status */}
+        <div className="flex items-center justify-end text-xs mx-2 text-gray-500 ">
           <span>{formattedTime}</span>
-          {isOwnMessage && (
+          {isOwnMessage && !message.isDeleted && (
             <span className="ml-1">
-              {message.isRead ?
-                <CheckCheck className="h-3 w-3 text-[#53bdeb]" /> :
+              {message.isRead ? (
+                <CheckCheck className="h-3 w-3 text-[#53bdeb]" />
+              ) : (
                 <Check className="h-3 w-3" />
-              }
+              )}
             </span>
           )}
         </div>
+
+        {/* WhatsApp-style emoji reactions display */}
+        {message.reactions && Object.keys(message.reactions).length > 0 && (
+          <div className="absolute -bottom-3 right-2 flex items-center bg-white rounded-full px-1 py-0.5 shadow-sm border">
+            {Object.entries(message.reactions).map(([emoji, users]) => (
+              <button
+                key={emoji}
+                onClick={() => handleEmojiReaction(message._id, emoji)}
+                className={`text-sm px-1 ${users.includes(username) ? 'scale-110' : ''
+                  }`}
+                title={`${users.join(', ')} reacted with ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+            <span className="text-xs text-gray-500 ml-1">
+              {Object.values(message.reactions).reduce((total, users) => total + users.length, 0)}
+            </span>
+          </div>
+        )}
+
+        {/* Emoji picker button - WhatsApp style */}
+        {!message.isDeleted && (
+          <button
+            onClick={() => setShowEmojiPicker(showEmojiPicker === message._id ? null : message._id)}
+            className={`absolute ${isOwnMessage
+                ? '-bottom-2 -left-4'
+                : '-bottom-2 -right-4'
+              } opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer bg-white hover:bg-gray-50 rounded-full p-1 shadow-lg border border-gray-200 z-10`}
+            title="Add reaction"
+          >
+            <span className="text-base text-gray-600">😊</span>
+          </button>
+        )}
+
+        {/* Delete button for message owner or admin
+        {!message.isDeleted && (isOwnMessage || isAdmin) && (
+          <button
+            onClick={() => handleDeleteMessage(message._id)}
+            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500"
+            title="Delete message"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )} */}
+        {/* Message options dropdown for message owner or admin */}
+        {!message.isDeleted && (
+          <div className="">
+            <button
+              onClick={() => setShowDropdown(showDropdown === message._id ? null : message._id)}
+              className={`absolute  top-4 right-2 opacity-0 group-hover:opacity-100 ${isOwnMessage ? 'group-hover:bg-[#d9fdd3]' : 'group-hover:bg-white'}   shadow-2xl rounded-full transition-opacity cursor-pointer text-black  hover:text-black`}
+              title="Message options"
+            >
+              <ChevronDown className="h-6 w-6" />
+
+            </button>
+
+            {/* Dropdown menu */}
+            <div className='relative'>
+              {showDropdown === message._id && (
+                <div className={`absolute top-0 ${isOwnMessage ? 'right-0' : ' left-0'}  z-50 bg-white rounded-lg shadow-lg border py-1 min-w-[120px]`}>
+                  <button
+                    onClick={() => {
+                      handleReplyMessage(message);
+                      setShowDropdown(null);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <Reply className="h-4 w-4" />
+                    Reply
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleDeleteMessage(message._id);
+                      setShowDropdown(null);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+
+
+          </div>
+        )}
       </div>
+
+      {/* WhatsApp-style Emoji picker */}
+      {showEmojiPicker === message._id && (
+        <div className="absolute z-30 bg-gray-800 rounded-full px-3 py-2 shadow-lg"
+          style={{
+            bottom: '40px',
+            left: isOwnMessage ? 'auto' : '10px',
+            right: isOwnMessage ? '10px' : 'auto'
+          }}>
+          <div className="flex items-center gap-2">
+            {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
+              <button
+                key={emoji}
+                onClick={() => handleEmojiReaction(message._id, emoji)}
+                className="text-2xl hover:scale-125 transition-transform p-1"
+                title={`React with ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+            {/* Add more emojis button */}
+            {/* <button
+              className="bg-gray-600 rounded-full p-1 text-white hover:bg-gray-500"
+              title="More reactions"
+            >
+              <Plus className="h-4 w-4" />
+            </button> */}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -136,6 +300,21 @@ export default function ChatInterface({
   console.log('isGroupEditMode', isGroupEditMode)
   // console.log('chatType', chatType)
   // console.log('messages', messages)
+  // Add these new states at the top of your component
+  const [showEmojiPicker, setShowEmojiPicker] = useState(null); // Track which message's emoji picker is open
+  const [replyingTo, setReplyingTo] = useState(null);
+
+
+
+
+
+  // Add this function to handle reply
+  const handleReplyMessage = (replyToMessage) => {
+    setReplyingTo(replyToMessage);
+    messageInputRef.current?.focus();
+  };
+
+
 
   const requestNotificationPermission = async () => {
     if ('Notification' in window) {
@@ -239,47 +418,71 @@ export default function ChatInterface({
     console.log('in main useEffect')
 
     // Handle receiving message history
-    const handleMessagesHistory = (messageHistory) => {
-      const uniqueMessages = removeDuplicateMessages(messageHistory);
-      setMessages(uniqueMessages);
-      setLoading(false);
+      const handleMessagesHistory = (messageHistory) => {
+          const uniqueMessages = removeDuplicateMessages(messageHistory);
+        setMessages(uniqueMessages);
+        setLoading(false);
 
-      // Mark all unread messages as read
-      const unreadMessages = uniqueMessages.filter(
-        msg => !msg.isRead && (
+        // Mark all unread messages as read
+        const unreadMessages = uniqueMessages.filter(
+          msg => !msg.isRead && (
           (isGroupChat && msg.groupId === selectedGroup) ||
           (!isGroupChat && msg.receiver === username)
         )
-      );
+        );
 
-      if (unreadMessages.length > 0) {
-        unreadMessages.forEach(msg => {
+        if (unreadMessages.length > 0) {
+          unreadMessages.forEach(msg => {
           if (isGroupChat) {
             socket.emit('group:markRead', {
               groupId: selectedGroup,
               userId: username
             });
           } else {
-            socket.emit('messages:markRead', {
-              sender: msg.sender,
-              receiver: msg.receiver
-            });
+              socket.emit('messages:markRead', {
+                sender: msg.sender,
+                receiver: msg.receiver
+              });
           }
+          });
+        }
+      };
+
+    // Handle read status updates from server
+    const handleReadStatusUpdate = (updatedMessages) => {
+      setMessages(prevMessages => {
+        return prevMessages.map(msg => {
+          // Find if this message was updated
+          const updatedMsg = updatedMessages.find(updated =>
+            updated._id === msg._id ||
+            (updated.content === msg.content &&
+              updated.sender === msg.sender &&
+              updated.receiver === msg.receiver &&
+              Math.abs(new Date(updated.createdAt) - new Date(msg.createdAt)) < 5000)
+          );
+
+          // If found, update the read status
+          if (updatedMsg) {
+            return { ...msg, isRead: true };
+          }
+
+          return msg;
         });
-      }
+      });
     };
 
     const handleReceiveMessage = (message) => {
+      // for issue resolve
       setMessages(prevMessages => {
-        // Check if message already exists
-        const messageExists = prevMessages.some(m =>
-          (m._id && m._id === message._id) ||
-          (m.content === message.content &&
-            m.sender === message.sender &&
-            ((isGroupChat && m.groupId === message.groupId) ||
+            // Check if message already exists
+            const messageExists = prevMessages.some(m =>
+              (m._id && m._id === message._id) ||
+              (m.content === message.content &&
+                m.sender === message.sender &&
+                ((isGroupChat && m.groupId === message.groupId) ||
               (!isGroupChat && m.receiver === message.receiver)) &&
-            Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 5000)
-        );
+                Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 5000)
+            );
 
         if (messageExists) return prevMessages;
 
@@ -300,20 +503,20 @@ export default function ChatInterface({
         return removeDuplicateMessages(newMessages);
       });
 
-      // Mark message as read
+          // Mark message as read
       if (isGroupChat && message.groupId === selectedGroup) {
         socket.emit('group:markRead', {
           groupId: selectedGroup,
           userId: username
         });
-      } else if (!isGroupChat && message.receiver === username) {
-        if (!isAdmin || (isAdmin && selectedUser === message.sender)) {
-          socket.emit('messages:markRead', {
-            sender: message.sender,
-            receiver: message.receiver
-          });
-        }
-      }
+          } else if (!isGroupChat && message.receiver === username) {
+            if (!isAdmin || (isAdmin && selectedUser === message.sender)) {
+              socket.emit('messages:markRead', {
+                sender: message.sender,
+                receiver: message.receiver
+              });
+            }
+          }
 
       // Play notification sound
       if (message.sender !== username) {
@@ -358,12 +561,54 @@ export default function ChatInterface({
       handleMessageSent(message);
     };
 
+    // Handle emoji reaction updates
+    const handleEmojiReactionUpdate = (data) => {
+      const { messageId, reactions } = data;
+      setMessages(prevMessages =>
+        prevMessages.map(msg =>
+          msg._id === messageId
+            ? { ...msg, reactions: reactions }
+            : msg
+        )
+      );
+    };
+
+    // Handle message deletion
+    const handleMessageDeleted = (data) => {
+      const { messageId, deletedBy, isAdmin } = data;
+      const deleteText = isAdmin
+        ? "This message was deleted by admin"
+        : `This message was deleted by ${deletedBy}`;
+
+      setMessages(prevMessages =>
+        prevMessages.map(msg =>
+          msg._id === messageId
+            ? {
+              ...msg,
+              content: deleteText,
+              isDeleted: true,
+              deletedBy: deletedBy,
+              file: undefined,
+              audio: undefined
+            }
+            : msg
+        )
+      );
+    };
+
+    // Add new socket listeners
+    socket.on('message:emojiReactionUpdate', handleEmojiReactionUpdate);
+    socket.on('message:deleted', handleMessageDeleted);
+
+    // close for now
     // Set up socket event listeners
     socket.on('messages:history', handleMessagesHistory);
     socket.on('message:receive', handleReceiveMessage);
     socket.on('message:sent', handleMessageSent);
     socket.on('group:messageReceive', handleGroupMessageReceive);
     socket.on('group:messageSent', handleGroupMessageSent);
+    socket.on('messages:readStatusUpdate', handleReadStatusUpdate); // New listener
+
 
     // Cleanup
     return () => {
@@ -372,9 +617,43 @@ export default function ChatInterface({
       socket.off('message:sent', handleMessageSent);
       socket.off('group:messageReceive', handleGroupMessageReceive);
       socket.off('group:messageSent', handleGroupMessageSent);
+      socket.off('messages:readStatusUpdate', handleReadStatusUpdate); // New cleanup
+      socket.off('message:emojiReactionUpdate', handleEmojiReactionUpdate);
+      socket.off('message:deleted', handleMessageDeleted);
+
     };
   }, [socket, username, isAdmin, selectedUser, selectedGroup, receiver, isGroupChat]);
 
+
+  // Function to handle emoji reaction
+  const handleEmojiReaction = (messageId, emoji) => {
+    if (!socket || !connected) return;
+
+    socket.emit('message:addEmojiReaction', {
+      messageId,
+      emoji,
+      username
+    });
+
+    setShowEmojiPicker(null); // Close emoji picker
+  };
+
+  // Function to handle message deletion
+  const handleDeleteMessage = (messageId) => {
+    if (!socket || !connected) return;
+
+    if (window.confirm('Are you sure you want to delete this message?')) {
+      socket.emit('message:delete', {
+        messageId,
+        deletedBy: username,
+        isAdmin
+      });
+    }
+  };
+
+
+
+  // for realtime read status updates
   // Clear messages and reload when selected user/group changes
   useEffect(() => {
     if (socket && connected) {
@@ -439,6 +718,7 @@ export default function ChatInterface({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setReplyingTo(null); // Clear replying state on send
 
     if (!newMessage.trim() || !socket || !connected) return;
 
@@ -479,7 +759,12 @@ export default function ChatInterface({
       socket.emit('message:send', {
         content: newMessage,
         sender: username,
-        receiver
+        receiver,
+      replyTo: replyingTo ? {
+        messageId: replyingTo._id,
+        content: replyingTo.content,
+        sender: replyingTo.sender
+      } : null
       });
     }
 
@@ -520,7 +805,12 @@ export default function ChatInterface({
         content: fileDescription,
         sender: username,
         receiver,
-        file: fileData
+        file: fileData,
+      replyTo: replyingTo ? {
+        messageId: replyingTo._id,
+        content: replyingTo.content,
+        sender: replyingTo.sender
+      } : null
       });
     }
   };
@@ -554,10 +844,17 @@ export default function ChatInterface({
         content: voiceDescription,
         sender: username,
         receiver,
-        audio: voiceData
+        audio: voiceData,
+      replyTo: replyingTo ? {
+        messageId: replyingTo._id,
+        content: replyingTo.content,
+        sender: replyingTo.sender
+      } : null
       });
     }
   };
+  // close for now
+
 
   // If admin with no selected user or group
   if (isAdmin && !selectedUser && !selectedGroup) {
@@ -735,12 +1032,23 @@ export default function ChatInterface({
         ) : (
           <>
             {messages.map((message, index) => (
-              <MessageBubble
-                key={index}
-                message={message}
-                isOwnMessage={message.sender === username}
+              <div key={index} id={`message-${message._id}`}>
+                <MessageBubble
+                  key={index}
+                  message={message}
+                  isOwnMessage={message.sender === username}
                 isGroupChat={isGroupChat}
-              />
+                  isAdmin={isAdmin}
+                  showEmojiPicker={showEmojiPicker}
+                  setShowEmojiPicker={setShowEmojiPicker}
+                  handleDeleteMessage={handleDeleteMessage}
+                  handleReplyMessage={handleReplyMessage}
+                  handleEmojiReaction={handleEmojiReaction}
+                  scrollToMessage={scrollToMessage}
+                  username={username}
+
+                />
+              </div>
             ))}
             <div ref={messagesEndRef} />
           </>
@@ -754,6 +1062,27 @@ export default function ChatInterface({
         </div>
       )}
 
+      {/* // Add reply UI above message input */}
+      {replyingTo && (
+        <div className="px-3 py-2 bg-gray-100 border-l-4 border-blue-500 mx-4 rounded">
+          <div className="flex justify-between items-start">
+            <div className="flex-1">
+              <p className="text-xs text-blue-600 font-medium">
+                Replying to {replyingTo.sender}
+              </p>
+              <p className="text-sm text-gray-600 truncate">
+                {replyingTo.content}
+              </p>
+            </div>
+            <button
+              onClick={() => setReplyingTo(null)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
       {/* Message input - Mobile optimized */}
       <form onSubmit={handleSubmit} className="p-1.5 md:p-2 bg-[#f0f2f5] fixed w-full bottom-0 right-0 md:static md:w-auto">
         <div className="flex items-center rounded-full bg-white p-1 " >
