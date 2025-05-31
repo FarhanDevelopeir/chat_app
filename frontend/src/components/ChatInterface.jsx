@@ -1,23 +1,21 @@
 
-
-// implement respoensive design
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { useSocket } from '@/context/SocketContext';
-import { 
-  Send, 
-  Paperclip, 
-  Smile, 
-  Mic, 
-  CheckCheck, 
-  Check, 
-  Edit, 
-  ArrowLeft, 
+import {
+  Send,
+  Paperclip,
+  Smile,
+  Mic,
+  CheckCheck,
+  Check,
+  Edit,
+  ArrowLeft,
   MoreVertical,
   Phone,
-  Video
+  Video,
+  Users
 } from 'lucide-react';
 import FileMessage from './FileMessage';
 import FileUpload from './FileUpload';
@@ -39,8 +37,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import CreateUser from './CreateUser';
+import CreateGroupDialog from './GroupDialogue'; // Import your CreateGroup component
 
-const MessageBubble = ({ message, isOwnMessage }) => {
+const MessageBubble = ({ message, isOwnMessage, isGroupChat = false }) => {
   const formattedTime = new Date(message.createdAt).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit'
@@ -57,6 +56,13 @@ const MessageBubble = ({ message, isOwnMessage }) => {
           : 'bg-white text-gray-800'
           }`}
       >
+        {/* Show sender name in group chat if not own message */}
+        {isGroupChat && !isOwnMessage && (
+          <p className="text-xs font-semibold text-[#00a884] mb-1">
+            {message.sender}
+          </p>
+        )}
+
         {isVoiceMessage ? (
           <AudioMessage audioData={message.audio.data} />
         ) : isFileMessage ? (
@@ -84,18 +90,25 @@ const MessageBubble = ({ message, isOwnMessage }) => {
 export default function ChatInterface({
   isAdmin = false,
   selectedUser = null,
+  selectedGroup = null, // New prop for selected group
   users = null,
+  groups = [], // New prop for groups list
   dialogOpen = null,
   setDialogOpen = null,
   setUserToEdit = null,
+  // setGroupToEdit = null,
   setIsEditMode = null,
+  // groupToEdit = null,
   userToEdit = null,
   isEditMode = null,
+  // setIsGroupEditMode = null,
+  // isGroupEditMode = null,
   newUsername = null,
   newPassword = null,
   setNewUsername = null,
   setNewPassword = null,
-  onBackClick = null, // New prop for mobile navigation
+  onBackClick = null,
+  chatType = 'user', // New prop: 'user' or 'group'
 }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -108,12 +121,21 @@ export default function ChatInterface({
   const messageInputRef = useRef(null);
   const typingTimeout = useRef(null);
   const [showOptions, setShowOptions] = useState(false);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false); // New state for create group dialog
 
   const [notificationPermission, setNotificationPermission] = useState('default');
   const [isTabActive, setIsTabActive] = useState(true);
 
   const username = isAdmin ? 'admin' : localStorage.getItem('chat_username');
-  const receiver = isAdmin ? selectedUser : 'admin';
+  const receiver = chatType === 'group' ? selectedGroup : (isAdmin ? selectedUser : 'admin');
+  const isGroupChat = chatType === 'group';
+
+  const [isGroupEditMode, setIsGroupEditMode] = useState(false);
+  const [groupToEdit, setGroupToEdit] = useState(null);
+
+  console.log('isGroupEditMode', isGroupEditMode)
+  // console.log('chatType', chatType)
+  // console.log('messages', messages)
 
   const requestNotificationPermission = async () => {
     if ('Notification' in window) {
@@ -129,13 +151,7 @@ export default function ChatInterface({
     return 'denied';
   }
 
-
-
   const showNotification = (message) => {
-    // if (isTabActive || message.sender === username) {
-    //   return;
-    // }
-
     console.log('message in notification', message)
 
     if (notificationPermission === 'granted' || notificationPermission === 'default') {
@@ -152,9 +168,9 @@ export default function ChatInterface({
 
       const notification = new Notification(senderName, {
         body: notificationBody,
-        icon: '/messenger.png', // Add your chat app icon
-        badge: '/verify.png', // Small badge icon for mobile
-        tag: `chat-${message.sender}`, // Prevents duplicate notifications
+        icon: '/messenger.png',
+        badge: '/verify.png',
+        tag: `chat-${message.sender}`,
         requireInteraction: false,
         silent: false
       });
@@ -215,80 +231,91 @@ export default function ChatInterface({
     if (!loading) {
       messageInputRef.current?.focus();
     }
-  }, [loading, isAdmin, selectedUser]);
+  }, [loading, isAdmin, selectedUser, selectedGroup]);
 
   useEffect(() => {
     if (!socket) return;
 
-    
+    console.log('in main useEffect')
 
     // Handle receiving message history
-  const handleMessagesHistory = (messageHistory) => {
-    // Remove any duplicates that might be in the message history
-    const uniqueMessages = removeDuplicateMessages(messageHistory);
-    setMessages(uniqueMessages);
-    setLoading(false);
+    const handleMessagesHistory = (messageHistory) => {
+      const uniqueMessages = removeDuplicateMessages(messageHistory);
+      setMessages(uniqueMessages);
+      setLoading(false);
 
-    // Mark all unread messages as read
-    const unreadMessages = uniqueMessages.filter(
-      msg => !msg.isRead && msg.receiver === username
-    );
+      // Mark all unread messages as read
+      const unreadMessages = uniqueMessages.filter(
+        msg => !msg.isRead && (
+          (isGroupChat && msg.groupId === selectedGroup) ||
+          (!isGroupChat && msg.receiver === username)
+        )
+      );
 
-    if (unreadMessages.length > 0) {
-      unreadMessages.forEach(msg => {
-        socket.emit('messages:markRead', {
-          sender: msg.sender,
-          receiver: msg.receiver
+      if (unreadMessages.length > 0) {
+        unreadMessages.forEach(msg => {
+          if (isGroupChat) {
+            socket.emit('group:markRead', {
+              groupId: selectedGroup,
+              userId: username
+            });
+          } else {
+            socket.emit('messages:markRead', {
+              sender: msg.sender,
+              receiver: msg.receiver
+            });
+          }
         });
-      });
-    }
-  };
+      }
+    };
 
     const handleReceiveMessage = (message) => {
-      
-      // for issue resolve
       setMessages(prevMessages => {
-    // First check if this message already exists in our state
-    const messageExists = prevMessages.some(m =>
-      (m._id && m._id === message._id) ||
-      (m.content === message.content &&
-        m.sender === message.sender &&
-        m.receiver === message.receiver &&
-        Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 5000)
-    );
+        // Check if message already exists
+        const messageExists = prevMessages.some(m =>
+          (m._id && m._id === message._id) ||
+          (m.content === message.content &&
+            m.sender === message.sender &&
+            ((isGroupChat && m.groupId === message.groupId) ||
+              (!isGroupChat && m.receiver === message.receiver)) &&
+            Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 5000)
+        );
 
-    // If message already exists, don't add it again
-    if (messageExists) return prevMessages;
+        if (messageExists) return prevMessages;
 
-        // For admin, only show messages related to the selected user
-        if (isAdmin && message.sender !== selectedUser && message.receiver !== selectedUser) {
-          return prevMessages;
+        // Filter messages based on chat type
+        if (isGroupChat) {
+          // For group chat, only show messages from the selected group
+          if (message.groupId !== selectedGroup) {
+            return prevMessages;
+          }
+        } else {
+          // For individual chat, filter as before
+          if (isAdmin && message.sender !== selectedUser && message.receiver !== selectedUser) {
+            return prevMessages;
+          }
         }
 
-        console.log('notificationPermission', notificationPermission)
-
-        // showNotification(message);
-
-        // Add the new message
         const newMessages = [...prevMessages, message];
-
-        
-
-    // Ensure no duplicates
-    return removeDuplicateMessages(newMessages);
-  });
-
-  // Mark message as read if we're the receiver
-  if (message.receiver === username) {
-    if (!isAdmin || (isAdmin && selectedUser === message.sender)) {
-      socket.emit('messages:markRead', {
-        sender: message.sender,
-        receiver: message.receiver
+        return removeDuplicateMessages(newMessages);
       });
-    }
-  }
 
-      // Play notification sound if the message is from the other party
+      // Mark message as read
+      if (isGroupChat && message.groupId === selectedGroup) {
+        socket.emit('group:markRead', {
+          groupId: selectedGroup,
+          userId: username
+        });
+      } else if (!isGroupChat && message.receiver === username) {
+        if (!isAdmin || (isAdmin && selectedUser === message.sender)) {
+          socket.emit('messages:markRead', {
+            sender: message.sender,
+            receiver: message.receiver
+          });
+        }
+      }
+
+      // Play notification sound
       if (message.sender !== username) {
         try {
           const audio = new Audio('https://res.cloudinary.com/duqzgojyp/video/upload/v1737207753/tpnevoboszj1rnsdsto1.mp3');
@@ -299,26 +326,22 @@ export default function ChatInterface({
       }
     };
 
-    // Handle message sent confirmation
     const handleMessageSent = (message) => {
-      // When server confirms a message was sent, make sure we don't have duplicates
       setMessages(prevMessages => {
-        // Find if we already have this message as a temporary one
         const index = prevMessages.findIndex(m =>
         (m.content === message.content &&
           m.sender === message.sender &&
-          m.receiver === message.receiver &&
+          ((isGroupChat && m.groupId === message.groupId) ||
+            (!isGroupChat && m.receiver === message.receiver)) &&
           !m._id)
         );
 
-        // If found, update it with the server version
         if (index !== -1) {
           const newMessages = [...prevMessages];
           newMessages[index] = message;
           return removeDuplicateMessages(newMessages);
         }
 
-        // If not found, add it only if it doesn't already exist
         const exists = prevMessages.some(m => m._id === message._id);
         if (exists) return prevMessages;
 
@@ -326,58 +349,89 @@ export default function ChatInterface({
       });
     };
 
+    // Handle group message events
+    const handleGroupMessageReceive = (message) => {
+      handleReceiveMessage(message);
+    };
+
+    const handleGroupMessageSent = (message) => {
+      handleMessageSent(message);
+    };
+
     // Set up socket event listeners
     socket.on('messages:history', handleMessagesHistory);
     socket.on('message:receive', handleReceiveMessage);
     socket.on('message:sent', handleMessageSent);
+    socket.on('group:messageReceive', handleGroupMessageReceive);
+    socket.on('group:messageSent', handleGroupMessageSent);
 
     // Cleanup
     return () => {
       socket.off('messages:history', handleMessagesHistory);
       socket.off('message:receive', handleReceiveMessage);
       socket.off('message:sent', handleMessageSent);
+      socket.off('group:messageReceive', handleGroupMessageReceive);
+      socket.off('group:messageSent', handleGroupMessageSent);
     };
-  }, [socket, username, isAdmin, selectedUser, receiver]);
+  }, [socket, username, isAdmin, selectedUser, selectedGroup, receiver, isGroupChat]);
 
-  // Clear messages and reload when selected user changes (admin only)
+  // Clear messages and reload when selected user/group changes
   useEffect(() => {
-    if (isAdmin && selectedUser && socket && connected) {
+    if (socket && connected) {
       setLoading(true);
       setMessages([]);
-      socket.emit('admin:selectUser', selectedUser);
+
+      if (isGroupChat && selectedGroup) {
+        socket.emit('group:join', selectedGroup);
+      } else if (isAdmin && selectedUser) {
+        socket.emit('admin:selectUser', selectedUser);
+      } else {
+        socket.emit('user:adminChat', username);
+      }
     }
-  }, [isAdmin, selectedUser, socket, connected]);
+  }, [isAdmin, selectedUser, selectedGroup, socket, connected, isGroupChat]);
 
   const handleTyping = () => {
     if (socket && connected) {
-      socket.emit('user:typing', {
-        sender: username,
-        receiver
-      });
+      if (isGroupChat) {
+        socket.emit('group:typing', {
+          groupId: selectedGroup,
+          sender: username
+        });
+      } else {
+        socket.emit('user:typing', {
+          sender: username,
+          receiver
+        });
+      }
     }
   };
 
   const handleStopTyping = () => {
     if (socket && connected) {
-      socket.emit('user:stopTyping', {
-        sender: username,
-        receiver
-      });
+      if (isGroupChat) {
+        socket.emit('group:stopTyping', {
+          groupId: selectedGroup,
+          sender: username
+        });
+      } else {
+        socket.emit('user:stopTyping', {
+          sender: username,
+          receiver
+        });
+      }
     }
   };
 
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
 
-    // Clear existing timeout
     if (typingTimeout.current) {
       clearTimeout(typingTimeout.current);
     }
 
-    // Send typing indicator
     handleTyping();
 
-    // Set timeout to stop typing
     typingTimeout.current = setTimeout(() => {
       handleStopTyping();
     }, 2000);
@@ -388,28 +442,26 @@ export default function ChatInterface({
 
     if (!newMessage.trim() || !socket || !connected) return;
 
-    // Stop typing indicator
     handleStopTyping();
 
-    // Only add message to state if there isn't a similar one already
     const tempMessage = {
       content: newMessage,
       sender: username,
-      receiver,
+      receiver: isGroupChat ? null : receiver,
+      groupId: isGroupChat ? selectedGroup : null,
       createdAt: new Date().toISOString(),
       isRead: false
     };
 
     setMessages(prevMessages => {
-      // Check if this exact message is already in state
       const isDuplicate = prevMessages.some(m =>
         m.content === tempMessage.content &&
         m.sender === tempMessage.sender &&
-        m.receiver === tempMessage.receiver &&
+        ((isGroupChat && m.groupId === tempMessage.groupId) ||
+          (!isGroupChat && m.receiver === tempMessage.receiver)) &&
         Math.abs(new Date(m.createdAt) - new Date(tempMessage.createdAt)) < 5000
       );
 
-      // Only add if not a duplicate
       if (!isDuplicate) {
         return [...prevMessages, tempMessage];
       }
@@ -417,13 +469,20 @@ export default function ChatInterface({
     });
 
     // Send message via socket
-    socket.emit('message:send', {
-      content: newMessage,
-      sender: username,
-      receiver
-    });
+    if (isGroupChat) {
+      socket.emit('group:sendMessage', {
+        content: newMessage,
+        sender: username,
+        groupId: selectedGroup
+      });
+    } else {
+      socket.emit('message:send', {
+        content: newMessage,
+        sender: username,
+        receiver
+      });
+    }
 
-    // Clear input and timeout
     setNewMessage('');
     if (typingTimeout.current) {
       clearTimeout(typingTimeout.current);
@@ -437,26 +496,33 @@ export default function ChatInterface({
       ? `[Image: ${fileData.name}]`
       : `[Document: ${fileData.name}]`;
 
-    // Create file message
     const fileMessage = {
       content: fileDescription,
       sender: username,
-      receiver,
+      receiver: isGroupChat ? null : receiver,
+      groupId: isGroupChat ? selectedGroup : null,
       createdAt: new Date().toISOString(),
       isRead: false,
       file: fileData
     };
 
-    // Add to message state (optimistic UI)
     setMessages(prev => [...prev, fileMessage]);
 
-    // Send the message with the file via socket
-    socket.emit('message:send', {
-      content: fileDescription,
-      sender: username,
-      receiver,
-      file: fileData
-    });
+    if (isGroupChat) {
+      socket.emit('group:sendMessage', {
+        content: fileDescription,
+        sender: username,
+        groupId: selectedGroup,
+        file: fileData
+      });
+    } else {
+      socket.emit('message:send', {
+        content: fileDescription,
+        sender: username,
+        receiver,
+        file: fileData
+      });
+    }
   };
 
   const handleVoiceUpload = (voiceData) => {
@@ -464,33 +530,40 @@ export default function ChatInterface({
 
     const voiceDescription = `[Voice: ${voiceData.name}]`;
 
-    // Create voice message
     const voiceMessage = {
       content: voiceDescription,
       sender: username,
-      receiver,
+      receiver: isGroupChat ? null : receiver,
+      groupId: isGroupChat ? selectedGroup : null,
       createdAt: new Date().toISOString(),
       isRead: false,
       audio: voiceData
     };
 
-    // Add to message state (optimistic UI)
     setMessages(prev => [...prev, voiceMessage]);
 
-    // Send the voice message with the audio data via socket
-    socket.emit('message:send', {
-      content: voiceDescription,
-      sender: username,
-      receiver,
-      audio: voiceData
-    });
+    if (isGroupChat) {
+      socket.emit('group:sendMessage', {
+        content: voiceDescription,
+        sender: username,
+        groupId: selectedGroup,
+        audio: voiceData
+      });
+    } else {
+      socket.emit('message:send', {
+        content: voiceDescription,
+        sender: username,
+        receiver,
+        audio: voiceData
+      });
+    }
   };
 
-  // If admin with no selected user
-  if (isAdmin && !selectedUser) {
+  // If admin with no selected user or group
+  if (isAdmin && !selectedUser && !selectedGroup) {
     return (
       <div className="flex items-center justify-center h-full bg-[#f0f2f5]">
-        <p className="text-gray-500">Select a user to start chatting</p>
+        <p className="text-gray-500">Select a user or group to start chatting</p>
       </div>
     );
   }
@@ -499,6 +572,15 @@ export default function ChatInterface({
     backgroundImage: `url('/chat-bg.jpg')`,
     backgroundRepeat: 'repeat',
     backgroundColor: '#efeae2',
+  };
+
+  // Get current chat display name
+  const getChatDisplayName = () => {
+    if (isGroupChat) {
+      const group = groups.find(g => g._id === selectedGroup);
+      return group ? group.name : 'Group';
+    }
+    return isAdmin ? selectedUser : 'Admin Support';
   };
 
   return (
@@ -518,17 +600,21 @@ export default function ChatInterface({
 
           <div className="relative">
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-[#00a884] flex items-center justify-center text-white font-medium">
-              {isAdmin ? selectedUser?.charAt(0).toUpperCase() : 'A'}
+              {isGroupChat ? (
+                <Users className="h-5 w-5" />
+              ) : (
+                isAdmin ? selectedUser?.charAt(0).toUpperCase() : 'A'
+              )}
             </div>
-            {!isAdmin && adminOnline && (
+            {!isAdmin && !isGroupChat && adminOnline && (
               <div className="absolute bottom-0 right-0 w-2 h-2 md:w-3 md:h-3 bg-green-500 rounded-full border-2 border-[#008069] md:border-white"></div>
             )}
           </div>
 
           <div className="ml-2 md:ml-3">
             <p className="text-xs md:text-sm font-medium text-white md:text-gray-900 flex items-center gap-1">
-              {isAdmin ? selectedUser : 'Admin Support'}
-              {!isAdmin && (
+              {getChatDisplayName()}
+              {!isAdmin && !isGroupChat && (
                 <img
                   src="/blue-tick.png"
                   alt="Blue Tick"
@@ -540,7 +626,9 @@ export default function ChatInterface({
               <p className="text-xs text-gray-200 md:text-gray-500 animate-pulse">typing...</p>
             ) : (
               <p className="text-xs text-gray-200 md:text-gray-500">
-                {/* {!isAdmin && (adminOnline ? 'online' : 'offline')} */}
+                {isGroupChat && (
+                  `${groups.find(g => g._id === selectedGroup)?.members?.length || 0} members`
+                )}
               </p>
             )}
           </div>
@@ -559,14 +647,14 @@ export default function ChatInterface({
           </div> */}
 
           {/* Options menu */}
-          <DropdownMenu>
+          {/* <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="text-white md:text-gray-800 p-1">
                 <MoreVertical className="h-5 w-5" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {isAdmin && selectedUser && (
+              {isAdmin && selectedUser && !isGroupChat && (
                 <DropdownMenuItem onClick={() => {
                   const userToEdit = users.find(user => user.username === selectedUser);
                   setUserToEdit(userToEdit);
@@ -584,15 +672,16 @@ export default function ChatInterface({
                 Clear Chat
               </DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
 
           {/* Edit button - only show for admin when a user is selected (desktop only) */}
-          {isAdmin && selectedUser && (
+          {isAdmin && selectedUser && !isGroupChat && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
                 const userToEdit = users.find(user => user.username === selectedUser);
+                console.log('userToEdit', userToEdit)
                 setUserToEdit(userToEdit);
                 setIsEditMode(true);
                 setDialogOpen(true);
@@ -601,6 +690,31 @@ export default function ChatInterface({
             >
               <Edit className="h-4 w-4" />
               Edit
+            </Button>
+          )}
+          {isAdmin && selectedGroup && isGroupChat && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                console.log('selectedGroup', selectedGroup)
+                console.log('groups', groups)
+                const groupToEdit = groups.find(group => group._id === selectedGroup);
+                console.log('groupToEdit', groupToEdit)
+                setGroupToEdit(groupToEdit);
+                // if (typeof setGroupToEdit === 'function') {
+                //   setGroupToEdit(groupToEdit);
+                // }
+                // if (typeof setIsGroupEditMode === 'function') {
+                //   setIsGroupEditMode(true);
+                // }
+                setIsGroupEditMode(true);
+                setCreateGroupOpen(true);
+              }}
+              className="hidden md:flex items-center gap-2"
+            >
+              <Edit className="h-4 w-4" />
+              Edit Group
             </Button>
           )}
         </div>
@@ -625,6 +739,7 @@ export default function ChatInterface({
                 key={index}
                 message={message}
                 isOwnMessage={message.sender === username}
+                isGroupChat={isGroupChat}
               />
             ))}
             <div ref={messagesEndRef} />
@@ -685,6 +800,7 @@ export default function ChatInterface({
         )}
       </form>
 
+      {/* Create User Dialog */}
       <Dialog open={dialogOpen}
         onOpenChange={(isOpen) => {
           setDialogOpen(isOpen);
@@ -708,6 +824,21 @@ export default function ChatInterface({
           setUserToEdit={setUserToEdit}
         />
       </Dialog>
+
+      {/* Create Group Dialog */}
+      <CreateGroupDialog
+        isOpen={createGroupOpen}
+        onClose={() => setCreateGroupOpen(false)}
+        users={users}
+        socket={socket}
+        username={username}
+        isEdit={isGroupEditMode}
+        setIsGroupEditMode={setIsGroupEditMode}
+        groupToEdit={groupToEdit}
+        setGroupToEdit={setGroupToEdit}
+
+      />
+
     </div>
   );
 }

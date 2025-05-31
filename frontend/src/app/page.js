@@ -1,6 +1,5 @@
 
 
-// implement responsive design for mobile view
 
 'use client';
 
@@ -18,6 +17,9 @@ export default function UserChatPage() {
   const [showChat, setShowChat] = useState(false); // For mobile view transitions
   const [isMobile, setIsMobile] = useState(false); // Track if we're on mobile
   const { socket } = useSocket();
+  const [userGroups, setUserGroups] = useState([]);
+  const [selectedChat, setSelectedChat] = useState('admin'); // null, 'admin', or groupId
+  const [chatType, setChatType] = useState('user');
 
   // Check for mobile viewports
   useEffect(() => {
@@ -47,6 +49,50 @@ export default function UserChatPage() {
     
     setLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (socket && isLoggedIn) {
+      const username = localStorage.getItem('chat_username');
+
+      console.log('in here')
+
+      // Fetch user's groups on login
+      socket.emit('groups:fetch', { username });
+
+      // Listen for groups list
+      socket.on('groups:list', (groupsList) => {
+        const filtered = groupsList.filter(g => g.members.includes(username));
+        setUserGroups(filtered);
+      });
+
+      // Listen for new group additions
+      socket.on('user:groupUpdated', (newGroup) => {
+        setUserGroups(prev => {
+          const exists = prev.some(group => group._id === newGroup._id);
+          if (!exists) {
+            return [...prev, newGroup];
+          }
+          return prev;
+        });
+      });
+
+      socket.on('group:created', (data) => {
+        socket.emit('groups:fetch', { username });
+        console.log(data.message);
+      });
+
+      socket.on('group:updated', (data) => {
+        socket.emit('groups:fetch', { username });
+      });
+
+      return () => {
+        socket.off('user:groupsList');
+        socket.off('user:groupUpdated');
+        socket.off('group:created');
+        socket.off('group:updated');
+      };
+    }
+  }, [socket, isLoggedIn]);
 
   // useEffect(() => {
   //   if (!socket) return;
@@ -115,8 +161,14 @@ export default function UserChatPage() {
     return <ChatLoader />;
   }
 
-  // Mobile view handler
-  const handleChatSelect = () => {
+  const handleChatSelect = (type = 'admin', groupId = null) => {
+    if (type === 'admin') {
+      setSelectedChat('admin');
+      setChatType('user');
+    } else if (type === 'group' && groupId) {
+      setSelectedChat(groupId);
+      setChatType('group');
+    }
     setShowChat(true);
   };
 
@@ -151,39 +203,73 @@ export default function UserChatPage() {
           </div>
         </div>
 
-        {/* Chat list - Currently only admin chat */}
-        <div 
-          className="cursor-pointer hover:bg-gray-100 p-3 border-b border-gray-200 flex justify-between items-center"
-          onClick={handleChatSelect}
-        >
-          <div className="flex items-center">
-            <div className="relative">
-              <div className="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center text-white font-bold">
-                A
+        <div className="flex-1 overflow-y-auto">
+          {/* Admin Support Chat */}
+          <div
+            className={`cursor-pointer hover:bg-gray-100 p-3 border-b border-gray-200 flex justify-between items-center ${selectedChat === 'admin' ? 'bg-gray-100' : ''
+              }`}
+            onClick={() => handleChatSelect('admin')}
+          >
+            <div className="flex items-center">
+              <div className="relative">
+                <div className="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center text-white font-bold">
+                  A
+                </div>
+                {adminOnline && (
+                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                )}
               </div>
-              {adminOnline && (
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+              <div className="ml-3">
+                <p className="font-medium text-gray-900 flex items-center gap-1">
+                  Admin Support
+                  <img
+                    src="/blue-tick.png"
+                    alt="Blue Tick"
+                    className="w-4 h-4 md:w-5 md:h-5"
+                  />
+                </p>
+                <p className="text-sm text-gray-500">
+                  {adminOnline ? 'Online' : 'Offline'}
+                </p>
+              </div>
+            </div>
+
+            {/* Mobile only arrow */}
+            {isMobile && (
+              <ChevronRight className="h-5 w-5 text-gray-400" />
+            )}
+          </div>
+
+          {/* User Groups */}
+          {userGroups.map((group) => (
+            <div
+              key={group._id}
+              className={`cursor-pointer hover:bg-gray-100 p-3 border-b border-gray-200 flex justify-between items-center ${selectedChat === group._id ? 'bg-gray-100' : ''
+                }`}
+              onClick={() => handleChatSelect('group', group._id)}
+            >
+              <div className="flex items-center">
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-full bg-[#128c7e] flex items-center justify-center text-white font-bold">
+                    {group.name.charAt(0).toUpperCase()}
+                  </div>
+                </div>
+                <div className="ml-3">
+                  <p className="font-medium text-gray-900">
+                    {group.name}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {group.members.length} members
+                  </p>
+                </div>
+              </div>
+
+              {/* Mobile only arrow */}
+              {isMobile && (
+                <ChevronRight className="h-5 w-5 text-gray-400" />
               )}
             </div>
-            <div className="ml-3">
-              <p className="font-medium text-gray-900 flex items-center gap-1">
-                Admin Support
-                <img
-                  src="/blue-tick.png"
-                  alt="Blue Tick"
-                  className="w-4 h-4 md:w-5 md:h-5"
-                />
-              </p>
-              <p className="text-sm text-gray-500">
-                {adminOnline ? 'Online' : 'Offline'}
-              </p>
-            </div>
-          </div>
-          
-          {/* Mobile only arrow */}
-          {isMobile && (
-            <ChevronRight className="h-5 w-5 text-gray-400" />
-          )}
+          ))}
         </div>
         
         {/* Empty state for mobile */}
@@ -202,9 +288,14 @@ export default function UserChatPage() {
         )}
       </div>
       
-      {/* Chat Area - Full width on mobile when showing chat */}
       <div className={`${isMobile && !showChat ? 'hidden' : 'w-full'} md:flex-1 flex flex-col`}>
-        <ChatInterface onBackClick={isMobile ? handleBackClick : null} />
+        <ChatInterface
+          onBackClick={isMobile ? handleBackClick : null}
+          selectedUser={chatType === 'user' ? 'admin' : null}
+          selectedGroup={chatType === 'group' ? selectedChat : null}
+          chatType={chatType}
+          groups={userGroups}
+        />
       </div>
     </div>
   );
