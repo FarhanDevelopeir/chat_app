@@ -13,4 +13,5 @@ export const scrollToMessage = (messageId) => {
       messageElement.classList.remove('bg-blue-50');
     }, 1000);
   }
+  
 };

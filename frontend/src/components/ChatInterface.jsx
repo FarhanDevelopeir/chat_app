@@ -51,7 +51,8 @@ import { scrollToMessage } from './utils/ChatInterface_functions';
 // Updated MessageBubble component with WhatsApp-style emoji reactions
 const MessageBubble = ({
   message,
-  isOwnMessage, isGroupChat = false,
+  isOwnMessage,
+  isGroupChat = false,
   isAdmin,
   showEmojiPicker,
   setShowEmojiPicker,
@@ -59,20 +60,53 @@ const MessageBubble = ({
   handleReplyMessage,
   handleEmojiReaction,
   scrollToMessage,
-  username
-
+  username,
+  showDropdown,
+  setShowDropdown
 }) => {
+  const isFileMessage = message.file !== undefined;
+  const isVoiceMessage = message.audio !== undefined;
+  
+  const containerRef = useRef(null);
+
+  
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if the clicked element is an emoji button, emoji picker, or dropdown
+      const isEmojiButton = event.target.closest('[data-emoji-button]');
+      const isEmojiPicker = event.target.closest('[data-emoji-picker]');
+      const isDropdownButton = event.target.closest('[data-dropdown-button]');
+      const isDropdownMenu = event.target.closest('[data-dropdown-menu]');
+
+      // Don't close if clicking on emoji/dropdown related elements
+      if (!isEmojiButton && !isEmojiPicker && !isDropdownButton && !isDropdownMenu) {
+        setShowEmojiPicker(null);
+        setShowDropdown(null);
+      }
+    };
+
+    // Add event listener to the document
+    document.addEventListener('click', handleClickOutside);
+
+    // Cleanup function to remove event listener
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, []);
+
+
   const formattedTime = new Date(message.createdAt).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit'
   });
 
-  const isFileMessage = message.file !== undefined;
-  const isVoiceMessage = message.audio !== undefined;
-  const [showDropdown, setShowDropdown] = useState(null);
+
 
   return (
-    <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-2 relative`}>
+    <div
+      ref={containerRef}
+      className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-3 relative`}>
       <div className={`relative ${message.replyTo ? '' : 'flex justify-between items-center'}   px-4  py-4 rounded-lg max-w-[80%] md:max-w-[70%] break-words group ${isOwnMessage
         ? 'bg-[#d9fdd3] text-gray-800'
         : 'bg-white text-gray-800'
@@ -99,12 +133,12 @@ const MessageBubble = ({
 
         {/* Message content */}
         <div className="break-words">
-        {/* Show sender name in group chat if not own message */}
-        {isGroupChat && !isOwnMessage && (
-          <p className="text-xs font-semibold text-[#00a884] mb-1">
-            {message.sender}
-          </p>
-        )}
+          {/* Show sender name in group chat if not own message */}
+          {isGroupChat && !isOwnMessage && (
+            <p className="text-xs font-semibold text-[#00a884] mb-1">
+              {message.sender}
+            </p>
+          )}
 
           {isVoiceMessage ? (
             <AudioMessage audioData={message.audio.data} />
@@ -152,10 +186,14 @@ const MessageBubble = ({
         {/* Emoji picker button - WhatsApp style */}
         {!message.isDeleted && (
           <button
-            onClick={() => setShowEmojiPicker(showEmojiPicker === message._id ? null : message._id)}
+            data-emoji-button="true"
+            onClick={(e) => {
+              // e.stopPropagation();  // Prevent click from propagating to the message bubble 
+              setShowEmojiPicker(showEmojiPicker === message._id ? null : message._id)
+            }}
             className={`absolute ${isOwnMessage
-                ? '-bottom-2 -left-4'
-                : '-bottom-2 -right-4'
+              ? '-bottom-2 -left-4'
+              : '-bottom-2 -right-4'
               } opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer bg-white hover:bg-gray-50 rounded-full p-1 shadow-lg border border-gray-200 z-10`}
             title="Add reaction"
           >
@@ -174,63 +212,84 @@ const MessageBubble = ({
           </button>
         )} */}
         {/* Message options dropdown for message owner or admin */}
-        {!message.isDeleted && (
-          <div className="">
-            <button
-              onClick={() => setShowDropdown(showDropdown === message._id ? null : message._id)}
-              className={`absolute  top-4 right-2 opacity-0 group-hover:opacity-100 ${isOwnMessage ? 'group-hover:bg-[#d9fdd3]' : 'group-hover:bg-white'}   shadow-2xl rounded-full transition-opacity cursor-pointer text-black  hover:text-black`}
-              title="Message options"
-            >
-              <ChevronDown className="h-6 w-6" />
+       {!message.isDeleted && (
+  <div className="absolute top-2 right-2">
+    {/* Button container with relative positioning */}
+    <div className="relative">
+      <button
+        data-dropdown-button="true"
+        onClick={() => {
+          setShowDropdown(showDropdown === message._id ? null : message._id)
+         
+        }}
+        className={`opacity-0 group-hover:opacity-100 ${isOwnMessage ? 'group-hover:bg-[#d9fdd3]' : 'group-hover:bg-white'} shadow-2xl rounded-full transition-opacity cursor-pointer text-black hover:text-black p-1`}
+        title="Message options"
+      >
+        <ChevronDown className="h-6 w-6" />
+      </button>
 
-            </button>
+      {/* Dropdown menu positioned relative to the button */}
+      {showDropdown === message._id && (
+        <div 
+          data-dropdown-menu="true"
+          className={`absolute top-8 ${isOwnMessage ? 'right-0' : 'left-0'} z-50 bg-white rounded-lg shadow-lg border py-1 min-w-[120px]`}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleReplyMessage(message);
+              setShowDropdown(null);
+            }}
+            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+          >
+            <Reply className="h-4 w-4" />
+            Reply
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteMessage(message._id);
+              setShowDropdown(null);
+            }}
+            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
-            {/* Dropdown menu */}
-            <div className='relative'>
-              {showDropdown === message._id && (
-                <div className={`absolute top-0 ${isOwnMessage ? 'right-0' : ' left-0'}  z-50 bg-white rounded-lg shadow-lg border py-1 min-w-[120px]`}>
-                  <button
-                    onClick={() => {
-                      handleReplyMessage(message);
-                      setShowDropdown(null);
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                  >
-                    <Reply className="h-4 w-4" />
-                    Reply
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleDeleteMessage(message._id);
-                      setShowDropdown(null);
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete
-                  </button>
-                </div>
-              )}
-            </div>
-
-
-          </div>
-        )}
+        
       </div>
 
       {/* WhatsApp-style Emoji picker */}
       {showEmojiPicker === message._id && (
-        <div className="absolute z-30 bg-gray-800 rounded-full px-3 py-2 shadow-lg"
+
+        <div
+          data-emoji-picker="true"
+          className="absolute z-30 bg-gray-800 rounded-full px-3 py-2 shadow-lg"
           style={{
             bottom: '40px',
             left: isOwnMessage ? 'auto' : '10px',
             right: isOwnMessage ? '10px' : 'auto'
-          }}>
+          }}
+          onClick={(e) => e.stopPropagation()}
+
+
+        >
           <div className="flex items-center gap-2">
             {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
               <button
                 key={emoji}
-                onClick={() => handleEmojiReaction(message._id, emoji)}
+                data-emoji-button="true"
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent click from propagating to the message bubble
+                  handleEmojiReaction(message._id, emoji);
+                  setShowEmojiPicker(null);
+                }}
                 className="text-2xl hover:scale-125 transition-transform p-1"
                 title={`React with ${emoji}`}
               >
@@ -303,6 +362,7 @@ export default function ChatInterface({
   // Add these new states at the top of your component
   const [showEmojiPicker, setShowEmojiPicker] = useState(null); // Track which message's emoji picker is open
   const [replyingTo, setReplyingTo] = useState(null);
+  const [showDropdown, setShowDropdown] = useState(null);
 
 
 
@@ -418,35 +478,35 @@ export default function ChatInterface({
     console.log('in main useEffect')
 
     // Handle receiving message history
-      const handleMessagesHistory = (messageHistory) => {
-          const uniqueMessages = removeDuplicateMessages(messageHistory);
-        setMessages(uniqueMessages);
-        setLoading(false);
+    const handleMessagesHistory = (messageHistory) => {
+      const uniqueMessages = removeDuplicateMessages(messageHistory);
+      setMessages(uniqueMessages);
+      setLoading(false);
 
-        // Mark all unread messages as read
-        const unreadMessages = uniqueMessages.filter(
-          msg => !msg.isRead && (
+      // Mark all unread messages as read
+      const unreadMessages = uniqueMessages.filter(
+        msg => !msg.isRead && (
           (isGroupChat && msg.groupId === selectedGroup) ||
           (!isGroupChat && msg.receiver === username)
         )
-        );
+      );
 
-        if (unreadMessages.length > 0) {
-          unreadMessages.forEach(msg => {
+      if (unreadMessages.length > 0) {
+        unreadMessages.forEach(msg => {
           if (isGroupChat) {
             socket.emit('group:markRead', {
               groupId: selectedGroup,
               userId: username
             });
           } else {
-              socket.emit('messages:markRead', {
-                sender: msg.sender,
-                receiver: msg.receiver
-              });
+            socket.emit('messages:markRead', {
+              sender: msg.sender,
+              receiver: msg.receiver
+            });
           }
-          });
-        }
-      };
+        });
+      }
+    };
 
     // Handle read status updates from server
     const handleReadStatusUpdate = (updatedMessages) => {
@@ -474,15 +534,15 @@ export default function ChatInterface({
     const handleReceiveMessage = (message) => {
       // for issue resolve
       setMessages(prevMessages => {
-            // Check if message already exists
-            const messageExists = prevMessages.some(m =>
-              (m._id && m._id === message._id) ||
-              (m.content === message.content &&
-                m.sender === message.sender &&
-                ((isGroupChat && m.groupId === message.groupId) ||
+        // Check if message already exists
+        const messageExists = prevMessages.some(m =>
+          (m._id && m._id === message._id) ||
+          (m.content === message.content &&
+            m.sender === message.sender &&
+            ((isGroupChat && m.groupId === message.groupId) ||
               (!isGroupChat && m.receiver === message.receiver)) &&
-                Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 5000)
-            );
+            Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 5000)
+        );
 
         if (messageExists) return prevMessages;
 
@@ -503,20 +563,20 @@ export default function ChatInterface({
         return removeDuplicateMessages(newMessages);
       });
 
-          // Mark message as read
+      // Mark message as read
       if (isGroupChat && message.groupId === selectedGroup) {
         socket.emit('group:markRead', {
           groupId: selectedGroup,
           userId: username
         });
-          } else if (!isGroupChat && message.receiver === username) {
-            if (!isAdmin || (isAdmin && selectedUser === message.sender)) {
-              socket.emit('messages:markRead', {
-                sender: message.sender,
-                receiver: message.receiver
-              });
-            }
-          }
+      } else if (!isGroupChat && message.receiver === username) {
+        if (!isAdmin || (isAdmin && selectedUser === message.sender)) {
+          socket.emit('messages:markRead', {
+            sender: message.sender,
+            receiver: message.receiver
+          });
+        }
+      }
 
       // Play notification sound
       if (message.sender !== username) {
@@ -760,11 +820,11 @@ export default function ChatInterface({
         content: newMessage,
         sender: username,
         receiver,
-      replyTo: replyingTo ? {
-        messageId: replyingTo._id,
-        content: replyingTo.content,
-        sender: replyingTo.sender
-      } : null
+        replyTo: replyingTo ? {
+          messageId: replyingTo._id,
+          content: replyingTo.content,
+          sender: replyingTo.sender
+        } : null
       });
     }
 
@@ -806,11 +866,11 @@ export default function ChatInterface({
         sender: username,
         receiver,
         file: fileData,
-      replyTo: replyingTo ? {
-        messageId: replyingTo._id,
-        content: replyingTo.content,
-        sender: replyingTo.sender
-      } : null
+        replyTo: replyingTo ? {
+          messageId: replyingTo._id,
+          content: replyingTo.content,
+          sender: replyingTo.sender
+        } : null
       });
     }
   };
@@ -845,11 +905,11 @@ export default function ChatInterface({
         sender: username,
         receiver,
         audio: voiceData,
-      replyTo: replyingTo ? {
-        messageId: replyingTo._id,
-        content: replyingTo.content,
-        sender: replyingTo.sender
-      } : null
+        replyTo: replyingTo ? {
+          messageId: replyingTo._id,
+          content: replyingTo.content,
+          sender: replyingTo.sender
+        } : null
       });
     }
   };
@@ -883,7 +943,7 @@ export default function ChatInterface({
   return (
     <div className="flex flex-col h-full">
       {/* Mobile-optimized header component */}
-      <div className="flex fixed w-full top-0 right-0 md:static md:w-auto items-center justify-between p-2.5 md:p-3 bg-[#008069] md:bg-[#f0f2f5] border-b border-gray-200 text-white md:text-black">
+      <div className="flex fixed w-full top-0 right-0 z-50 md:static md:w-auto items-center justify-between p-2.5 md:p-3 bg-[#008069] md:bg-[#f0f2f5] border-b border-gray-200 text-white md:text-black">
         <div className="flex items-center">
           {/* Back button for mobile */}
           {onBackClick && (
@@ -1037,7 +1097,7 @@ export default function ChatInterface({
                   key={index}
                   message={message}
                   isOwnMessage={message.sender === username}
-                isGroupChat={isGroupChat}
+                  isGroupChat={isGroupChat}
                   isAdmin={isAdmin}
                   showEmojiPicker={showEmojiPicker}
                   setShowEmojiPicker={setShowEmojiPicker}
@@ -1046,6 +1106,8 @@ export default function ChatInterface({
                   handleEmojiReaction={handleEmojiReaction}
                   scrollToMessage={scrollToMessage}
                   username={username}
+                  showDropdown={showDropdown}
+                  setShowDropdown={setShowDropdown}
 
                 />
               </div>
@@ -1064,8 +1126,8 @@ export default function ChatInterface({
 
       {/* // Add reply UI above message input */}
       {replyingTo && (
-        <div className="px-3 py-2 bg-gray-100 border-l-4 border-blue-500 mx-4 rounded">
-          <div className="flex justify-between items-start">
+        <div className=" z-50  px-4 py-2 bg-gray-100 border-l-4 border-blue-500 mx-4 rounded fixed w-full  bottom-12 md:bottom-0 right-0 md:static md:w-auto">
+          <div className=" border-l-4 border-blue-500 rounded  pl-3 md:p-0 md:border-0 flex justify-between items-start">
             <div className="flex-1">
               <p className="text-xs text-blue-600 font-medium">
                 Replying to {replyingTo.sender}
@@ -1076,7 +1138,7 @@ export default function ChatInterface({
             </div>
             <button
               onClick={() => setReplyingTo(null)}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>
