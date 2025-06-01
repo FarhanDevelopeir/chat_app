@@ -66,10 +66,10 @@ const MessageBubble = ({
 }) => {
   const isFileMessage = message.file !== undefined;
   const isVoiceMessage = message.audio !== undefined;
-  
+
   const containerRef = useRef(null);
 
-  
+
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -212,57 +212,57 @@ const MessageBubble = ({
           </button>
         )} */}
         {/* Message options dropdown for message owner or admin */}
-       {!message.isDeleted && (
-  <div className="absolute top-2 right-2">
-    {/* Button container with relative positioning */}
-    <div className="relative">
-      <button
-        data-dropdown-button="true"
-        onClick={() => {
-          setShowDropdown(showDropdown === message._id ? null : message._id)
-         
-        }}
-        className={`opacity-0 group-hover:opacity-100 ${isOwnMessage ? 'group-hover:bg-[#d9fdd3]' : 'group-hover:bg-white'} shadow-2xl rounded-full transition-opacity cursor-pointer text-black hover:text-black p-1`}
-        title="Message options"
-      >
-        <ChevronDown className="h-6 w-6" />
-      </button>
+        {!message.isDeleted && (
+          <div className="absolute top-2 right-2">
+            {/* Button container with relative positioning */}
+            <div className="relative">
+              <button
+                data-dropdown-button="true"
+                onClick={() => {
+                  setShowDropdown(showDropdown === message._id ? null : message._id)
 
-      {/* Dropdown menu positioned relative to the button */}
-      {showDropdown === message._id && (
-        <div 
-          data-dropdown-menu="true"
-          className={`absolute top-8 ${isOwnMessage ? 'right-0' : 'left-0'} z-50 bg-white rounded-lg shadow-lg border py-1 min-w-[120px]`}
-        >
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleReplyMessage(message);
-              setShowDropdown(null);
-            }}
-            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-          >
-            <Reply className="h-4 w-4" />
-            Reply
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDeleteMessage(message._id);
-              setShowDropdown(null);
-            }}
-            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete
-          </button>
-        </div>
-      )}
-    </div>
-  </div>
-)}
+                }}
+                className={`opacity-0 group-hover:opacity-100 ${isOwnMessage ? 'group-hover:bg-[#d9fdd3]' : 'group-hover:bg-white'} shadow-2xl rounded-full transition-opacity cursor-pointer text-black hover:text-black p-1`}
+                title="Message options"
+              >
+                <ChevronDown className="h-6 w-6" />
+              </button>
 
-        
+              {/* Dropdown menu positioned relative to the button */}
+              {showDropdown === message._id && (
+                <div
+                  data-dropdown-menu="true"
+                  className={`absolute top-8 ${isOwnMessage ? 'right-0' : 'left-0'} z-50 bg-white rounded-lg shadow-lg border py-1 min-w-[120px]`}
+                >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleReplyMessage(message);
+                      setShowDropdown(null);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <Reply className="h-4 w-4" />
+                    Reply
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteMessage(message._id);
+                      setShowDropdown(null);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+
       </div>
 
       {/* WhatsApp-style Emoji picker */}
@@ -531,6 +531,32 @@ export default function ChatInterface({
       });
     };
 
+    // Handle group read status updates (Improved version - similar to user-to-admin)
+    const handleGroupReadStatusUpdate = (data) => {
+      const { groupId, readBy, updatedMessages } = data;
+
+      setMessages(prevMessages => {
+        return prevMessages.map(msg => {
+          // Find if this message was updated
+          const updatedMsg = updatedMessages.find(updated =>
+            updated._id === msg._id ||
+            (updated.content === msg.content &&
+              updated.sender === msg.sender &&
+              updated.groupId === msg.groupId &&
+              Math.abs(new Date(updated.createdAt) - new Date(msg.createdAt)) < 5000)
+          );
+
+          // If found, update the read status
+          if (updatedMsg) {
+            return { ...msg, isRead: true };
+          }
+
+          return msg;
+        });
+      });
+    };
+
+
     const handleReceiveMessage = (message) => {
       // for issue resolve
       setMessages(prevMessages => {
@@ -668,7 +694,7 @@ export default function ChatInterface({
     socket.on('group:messageReceive', handleGroupMessageReceive);
     socket.on('group:messageSent', handleGroupMessageSent);
     socket.on('messages:readStatusUpdate', handleReadStatusUpdate); // New listener
-
+    socket.on('group:readStatusUpdate', handleGroupReadStatusUpdate);
 
     // Cleanup
     return () => {
@@ -680,6 +706,8 @@ export default function ChatInterface({
       socket.off('messages:readStatusUpdate', handleReadStatusUpdate); // New cleanup
       socket.off('message:emojiReactionUpdate', handleEmojiReactionUpdate);
       socket.off('message:deleted', handleMessageDeleted);
+      socket.off('group:readStatusUpdate', handleGroupReadStatusUpdate);
+
 
     };
   }, [socket, username, isAdmin, selectedUser, selectedGroup, receiver, isGroupChat]);
@@ -813,7 +841,12 @@ export default function ChatInterface({
       socket.emit('group:sendMessage', {
         content: newMessage,
         sender: username,
-        groupId: selectedGroup
+        groupId: selectedGroup,
+        replyTo: replyingTo ? {
+          messageId: replyingTo._id,
+          content: replyingTo.content,
+          sender: replyingTo.sender
+        } : null
       });
     } else {
       socket.emit('message:send', {
@@ -858,7 +891,12 @@ export default function ChatInterface({
         content: fileDescription,
         sender: username,
         groupId: selectedGroup,
-        file: fileData
+        file: fileData,
+        replyTo: replyingTo ? {
+          messageId: replyingTo._id,
+          content: replyingTo.content,
+          sender: replyingTo.sender
+        } : null
       });
     } else {
       socket.emit('message:send', {
@@ -897,7 +935,12 @@ export default function ChatInterface({
         content: voiceDescription,
         sender: username,
         groupId: selectedGroup,
-        audio: voiceData
+        audio: voiceData,
+        replyTo: replyingTo ? {
+          messageId: replyingTo._id,
+          content: replyingTo.content,
+          sender: replyingTo.sender
+        } : null
       });
     } else {
       socket.emit('message:send', {
@@ -943,7 +986,7 @@ export default function ChatInterface({
   return (
     <div className="flex flex-col h-full">
       {/* Mobile-optimized header component */}
-      <div className="flex fixed w-full top-0 right-0 z-50 md:static md:w-auto items-center justify-between p-2.5 md:p-3 bg-[#008069] md:bg-[#f0f2f5] border-b border-gray-200 text-white md:text-black">
+      <div className="flex fixed w-full top-0 right-0 z-40 md:static md:w-auto items-center justify-between p-2.5 md:p-3 bg-[#008069] md:bg-[#f0f2f5] border-b border-gray-200 text-white md:text-black">
         <div className="flex items-center">
           {/* Back button for mobile */}
           {onBackClick && (
