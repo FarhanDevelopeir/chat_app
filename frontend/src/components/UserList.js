@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -32,17 +32,20 @@ import {
   SheetTrigger,
   SheetClose
 } from "@/components/ui/sheet";
+import ProfileAvatar from './ProfileAvatar';
 
-export default function UsersList({ 
-  users, 
-  onSelectUser, 
-  selectedUser, 
-  setIsLoggedIn, 
-  socket, 
-  dialogOpen, 
-  setDialogOpen, 
-  userToEdit, 
-  isEditMode, 
+export default function UsersList({
+  users,
+  onSelectUser,
+  selectedUser,
+  setIsLoggedIn,
+  currentUser,
+  socket,
+  dialogOpen,
+  setDialogOpen,
+  handleProfileUpdate,
+  userToEdit,
+  isEditMode,
   newUsername,
   newPassword,
   setNewUsername,
@@ -60,13 +63,13 @@ export default function UsersList({
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     // Initial check
     checkIfMobile();
-    
+
     // Listen for resize events
     window.addEventListener('resize', checkIfMobile);
-    
+
     return () => {
       window.removeEventListener('resize', checkIfMobile);
     };
@@ -77,7 +80,7 @@ export default function UsersList({
     if (socket) {
       // Request unread counts for all users
       socket.emit('admin:getUnreadCounts');
-      
+
       // Listen for unread counts updates
       socket.on('admin:unreadCounts', (counts) => {
         setUnreadCounts(counts);
@@ -191,11 +194,11 @@ export default function UsersList({
     socket.emit('admin:logout');
   };
 
-  const handleSelectUser = (username) => {
-    onSelectUser(username);
+  const handleSelectUser = (user) => {
+    onSelectUser(user);
     // Mark messages as read when admin selects a user
     if (socket) {
-      socket.emit('messages:markRead', { sender: username, receiver: 'admin' });
+      socket.emit('messages:markRead', { sender: user?.username, receiver: 'admin' });
     }
   };
 
@@ -206,8 +209,8 @@ export default function UsersList({
         <Button variant="ghost" size="icon" className="md:hidden relative">
           <Menu className="h-5 w-5" />
           {totalUnreadMessages > 0 && (
-            <Badge 
-              variant="destructive" 
+            <Badge
+              variant="destructive"
               className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center bg-red-500 hover:bg-red-500"
             >
               {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
@@ -229,18 +232,18 @@ export default function UsersList({
         <div className="px-4 py-2">
           <div className="flex flex-col space-y-2">
             <SheetClose asChild>
-              <Button 
-                variant="ghost" 
-                className="justify-start" 
+              <Button
+                variant="ghost"
+                className="justify-start"
                 onClick={() => setFilter('all')}
               >
                 All Users
               </Button>
             </SheetClose>
             <SheetClose asChild>
-              <Button 
-                variant="ghost" 
-                className="justify-start" 
+              <Button
+                variant="ghost"
+                className="justify-start"
                 onClick={() => setFilter('unread')}
               >
                 Unread Messages
@@ -252,18 +255,18 @@ export default function UsersList({
               </Button>
             </SheetClose>
             <SheetClose asChild>
-              <Button 
-                variant="ghost" 
-                className="justify-start" 
+              <Button
+                variant="ghost"
+                className="justify-start"
                 onClick={() => setDialogOpen(true)}
               >
                 <UserPlus className="h-4 w-4 mr-2" /> Add New User
               </Button>
             </SheetClose>
             <div className="border-t border-gray-200 my-2"></div>
-            <Button 
-              variant="ghost" 
-              className="justify-start text-red-500 hover:text-red-600 hover:bg-red-50" 
+            <Button
+              variant="ghost"
+              className="justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
               onClick={handleLogout}
             >
               <LogOut className="h-4 w-4 mr-2" /> Logout
@@ -283,8 +286,8 @@ export default function UsersList({
             <User className="h-5 w-5 mr-2" />
             <span className="font-medium text-[#00a884]">Admin Panel</span>
             {totalUnreadMessages > 0 && !isMobile && (
-              <Badge 
-                variant="destructive" 
+              <Badge
+                variant="destructive"
                 className="ml-2 bg-red-500 hover:bg-red-500"
               >
                 {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
@@ -292,13 +295,12 @@ export default function UsersList({
             )}
           </div>
           <div className="flex items-center space-x-1">
-            <button
-              onClick={() => setDialogOpen(true)}
-              className="hover:bg-[#f0f2f5] rounded-full p-2 cursor-pointer hidden md:block"
-              title="Add User"
-            >
-              <UserPlus className="h-5 w-5" />
-            </button>
+            <ProfileAvatar
+              user={currentUser}
+              onProfileUpdate={handleProfileUpdate}
+              socket={socket}
+              isAdmin={true}
+            />
             <button
               onClick={handleLogout}
               className="hover:bg-[#f0f2f5] rounded-full p-2 cursor-pointer hidden md:block"
@@ -354,7 +356,7 @@ export default function UsersList({
             <UserPlus className="h-4 w-4 mr-1" /> Add User
           </Button>
         </div>
-        
+
         {/* Mobile filters - simple text displays */}
         <div className="flex justify-between items-center mt-2 md:hidden">
           <div className="text-sm font-medium text-slate-600">
@@ -379,14 +381,17 @@ export default function UsersList({
               {sortedUsers.map((user) => (
                 <div
                   key={user.username}
-                  className={`p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors relative ${
-                    selectedUser === user.username ? 'bg-slate-100' : ''
-                  } ${user.unreadCount > 0 ? 'bg-green-50 border-l-4 border-l-green-500' : ''}`}
-                  onClick={() => handleSelectUser(user.username)}
+                  className={`p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors relative ${selectedUser?.username === user.username ? 'bg-slate-100' : ''
+                    } ${user.unreadCount > 0 ? 'bg-green-50 border-l-4 border-l-green-500' : ''}`}
+                  onClick={() => handleSelectUser(user)}
                 >
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <Avatar className="h-10 w-10 md:h-12 md:w-12 bg-slate-200">
+                        <AvatarImage
+                          src={user.profilePicture || user.avatar}
+                          alt={`${user.username}'s profile picture`}
+                        />
                         <AvatarFallback className="bg-[#00a884] text-white">
                           {user.username.charAt(0).toUpperCase()}
                         </AvatarFallback>
@@ -398,9 +403,8 @@ export default function UsersList({
 
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline">
-                        <p className={`text-sm font-medium truncate ${
-                          user.unreadCount > 0 ? 'text-slate-900 font-semibold' : 'text-slate-900'
-                        }`}>
+                        <p className={`text-sm font-medium truncate ${user.unreadCount > 0 ? 'text-slate-900 font-semibold' : 'text-slate-900'
+                          }`}>
                           {user.username}
                         </p>
                         <span className="text-xs text-slate-500 whitespace-nowrap">
@@ -410,9 +414,8 @@ export default function UsersList({
                       </div>
 
                       <div className="flex items-center justify-between mt-1">
-                        <p className={`text-xs truncate pr-2 ${
-                          user.unreadCount > 0 ? 'text-slate-700 font-medium' : 'text-slate-500'
-                        }`}>
+                        <p className={`text-xs truncate pr-2 ${user.unreadCount > 0 ? 'text-slate-700 font-medium' : 'text-slate-500'
+                          }`}>
                           {user.lastMessage ? user.lastMessage.substring(0, 30) + (user.lastMessage.length > 30 ? '...' : '') :
                             user.isOnline ? (
                               <span className="flex items-center gap-1 text-green-600">
@@ -425,8 +428,8 @@ export default function UsersList({
                         </p>
 
                         {user.unreadCount > 0 && (
-                          <Badge 
-                            variant="default" 
+                          <Badge
+                            variant="default"
                             className="bg-green-600 hover:bg-green-600 text-white min-w-[20px] h-5 px-2 text-xs font-semibold rounded-full flex items-center justify-center"
                           >
                             {user.unreadCount > 99 ? '99+' : user.unreadCount}
@@ -451,9 +454,9 @@ export default function UsersList({
           newUsername={newUsername}
           setNewUsername={setNewUsername}
           newPassword={newPassword}
-          setNewPassword={setNewPassword} 
+          setNewPassword={setNewPassword}
         />
-      </Dialog>  
+      </Dialog>
     </div>
   );
 }

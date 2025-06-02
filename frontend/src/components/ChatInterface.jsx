@@ -90,7 +90,8 @@ const MessageBubble = ({ message, isOwnMessage, isGroupChat = false }) => {
 export default function ChatInterface({
   isAdmin = false,
   selectedUser = null,
-  selectedGroup = null, // New prop for selected group
+  selectedGroup = null,
+  admin  = null, // New prop for selected group
   users = null,
   groups = [], // New prop for groups list
   dialogOpen = null,
@@ -127,13 +128,13 @@ export default function ChatInterface({
   const [isTabActive, setIsTabActive] = useState(true);
 
   const username = isAdmin ? 'admin' : localStorage.getItem('chat_username');
-  const receiver = chatType === 'group' ? selectedGroup : (isAdmin ? selectedUser : 'admin');
+  const receiver = chatType === 'group' ? selectedGroup : (isAdmin ? selectedUser?.username : 'admin');
   const isGroupChat = chatType === 'group';
 
   const [isGroupEditMode, setIsGroupEditMode] = useState(false);
   const [groupToEdit, setGroupToEdit] = useState(null);
 
-  console.log('isGroupEditMode', isGroupEditMode)
+  console.log('selectedUser', selectedUser)
   // console.log('chatType', chatType)
   // console.log('messages', messages)
 
@@ -291,7 +292,7 @@ export default function ChatInterface({
           }
         } else {
           // For individual chat, filter as before
-          if (isAdmin && message.sender !== selectedUser && message.receiver !== selectedUser) {
+          if (isAdmin && message.sender !== selectedUser.username && message.receiver !== selectedUser?.username) {
             return prevMessages;
           }
         }
@@ -307,7 +308,7 @@ export default function ChatInterface({
           userId: username
         });
       } else if (!isGroupChat && message.receiver === username) {
-        if (!isAdmin || (isAdmin && selectedUser === message.sender)) {
+        if (!isAdmin || (isAdmin && selectedUser?.username === message.sender)) {
           socket.emit('messages:markRead', {
             sender: message.sender,
             receiver: message.receiver
@@ -383,8 +384,8 @@ export default function ChatInterface({
 
       if (isGroupChat && selectedGroup) {
         socket.emit('group:join', selectedGroup);
-      } else if (isAdmin && selectedUser) {
-        socket.emit('admin:selectUser', selectedUser);
+      } else if (isAdmin && selectedUser?.username) {
+        socket.emit('admin:selectUser', selectedUser?.username);
       } else {
         socket.emit('user:adminChat', username);
       }
@@ -580,7 +581,7 @@ export default function ChatInterface({
       const group = groups.find(g => g._id === selectedGroup);
       return group ? group.name : 'Group';
     }
-    return isAdmin ? selectedUser : 'Admin Support';
+    return isAdmin ? selectedUser?.username : 'Admin Support';
   };
 
   return (
@@ -599,11 +600,36 @@ export default function ChatInterface({
           )}
 
           <div className="relative">
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-[#00a884] flex items-center justify-center text-white font-medium">
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-[#00a884] flex items-center justify-center text-white font-medium overflow-hidden">
               {isGroupChat ? (
                 <Users className="h-5 w-5" />
               ) : (
-                isAdmin ? selectedUser?.charAt(0).toUpperCase() : 'A'
+                <>
+                  {isAdmin ? (
+                    // Admin profile picture or fallback
+                    
+                    selectedUser?.profilePicture ? (
+                      <img
+                        src={selectedUser.profilePicture}
+                        alt={`${selectedUser}'s profile picture`}
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                    ) : (
+                      selectedUser?.username?.charAt(0).toUpperCase()
+                    )
+                  ) : (
+                    // Selected user profile picture or fallback
+                    admin?.profilePicture ? (
+                      <img
+                        src={admin.profilePicture}
+                        alt="Admin profile picture"
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                    ) : (
+                      'A'
+                    )
+                  )}
+                </>
               )}
             </div>
             {!isAdmin && !isGroupChat && adminOnline && (
@@ -680,7 +706,7 @@ export default function ChatInterface({
               variant="outline"
               size="sm"
               onClick={() => {
-                const userToEdit = users.find(user => user.username === selectedUser);
+                const userToEdit = users.find(user => user.username === selectedUser?.username);
                 console.log('userToEdit', userToEdit)
                 setUserToEdit(userToEdit);
                 setIsEditMode(true);

@@ -18,6 +18,7 @@ export default function UserChatPage() {
   const [showChat, setShowChat] = useState(false); // For mobile view transitions
   const [isMobile, setIsMobile] = useState(false); // Track if we're on mobile
   const [currentUser, setCurrentUser] = useState(null);
+  const [admin, setAdmin] = useState(null);
   const { socket } = useSocket();
   const [userGroups, setUserGroups] = useState([]);
   const [selectedChat, setSelectedChat] = useState('admin'); // null, 'admin', or groupId
@@ -98,6 +99,10 @@ export default function UserChatPage() {
         setCurrentUser(user);
       });
 
+      socket.on('admin:profiledata', (userData) => {
+        setAdmin(userData);
+      });
+
       return () => {
         socket.off('user:groupsList');
         socket.off('user:groupUpdated');
@@ -105,6 +110,7 @@ export default function UserChatPage() {
         socket.off('group:updated');
         socket.off('user:profileUpdated');
         socket.off('user:loginSuccess');
+        socket.off('admin:profiledata');
       };
     }
   }, [socket, isLoggedIn]);
@@ -210,8 +216,16 @@ export default function UserChatPage() {
           >
             <div className="flex items-center">
               <div className="relative">
-                <div className="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center text-white font-bold">
-                  A
+                <div className="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center text-white font-bold overflow-hidden">
+                  {admin?.profilePicture ? (
+                    <img
+                      src={admin?.profilePicture}
+                      alt="Admin profile picture"
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    "A"
+                  )}
                 </div>
                 {adminOnline && (
                   <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
@@ -293,6 +307,7 @@ export default function UserChatPage() {
           selectedGroup={chatType === 'group' ? selectedChat : null}
           chatType={chatType}
           groups={userGroups}
+          admin={admin}
         />
       </div>
     </div>

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Camera, Upload, User } from 'lucide-react';
 
-const ProfileAvatar = ({ user, onProfileUpdate, socket }) => {
+const ProfileAvatar = ({ user, onProfileUpdate, socket, isAdmin = false }) => {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [previewImage, setPreviewImage] = useState(null);
@@ -34,10 +34,17 @@ const ProfileAvatar = ({ user, onProfileUpdate, socket }) => {
 
             if (data.secure_url) {
                 // Update profile via socket
-                socket.emit('user:updateProfile', {
-                    username: user.username,
-                    profilePicture: data.secure_url
-                });
+                if (isAdmin) {
+                    socket.emit('admin:updateProfile', {
+                        username: 'admin',
+                        profilePicture: data.secure_url
+                    });
+                } else {
+                    socket.emit('user:updateProfile', {
+                        username: user.username,
+                        profilePicture: data.secure_url
+                    });
+                }
 
                 // Update local state
                 onProfileUpdate(data.secure_url);
@@ -106,7 +113,7 @@ const ProfileAvatar = ({ user, onProfileUpdate, socket }) => {
                     </div>
                 ) : (
                     <div className="relative">
-                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-colors duration-200">
+                        <div className="w-8 h-8 rounded-full bg-gray-400 flex items-center justify-center group-hover:bg-white/30 transition-colors duration-200">
                             <User className="h-4 w-4 text-white" />
                         </div>
                         <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-[#00a884] rounded-full flex items-center justify-center">
@@ -170,14 +177,20 @@ const ProfileAvatar = ({ user, onProfileUpdate, socket }) => {
                                         </>
                                     )}
                                 </button>
-
                                 {user?.profilePicture && (
                                     <button
                                         onClick={() => {
-                                            socket.emit('user:updateProfile', {
-                                                username: user.username,
-                                                profilePicture: null
-                                            });
+                                            if (isAdmin) {
+                                                socket.emit('admin:updateProfile', {
+                                                    username: 'admin',
+                                                    profilePicture: null
+                                                });
+                                            } else {
+                                                socket.emit('user:updateProfile', {
+                                                    username: user.username,
+                                                    profilePicture: null
+                                                });
+                                            }
                                             onProfileUpdate(null);
                                             closeDialog();
                                         }}
