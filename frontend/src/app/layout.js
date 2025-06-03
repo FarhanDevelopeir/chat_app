@@ -3,8 +3,11 @@ import ConnectionStatus from '@/components/ConnectionStatus';
 import './globals.css';
 
 export const metadata = {
-  title: 'Chat Application',
+  title: 'WinChat',
   description: 'Real-time chat application with admin panel',
+  // icons: {
+  //   icon: '/favicon.ico',
+  // },
 };
 
 export default function RootLayout({ children }) {

@@ -1215,8 +1215,16 @@ export default function ChatInterface({
   // If admin with no selected user or group
   if (isAdmin && !selectedUser && !selectedGroup) {
     return (
-      <div className="flex items-center justify-center h-full bg-[#f0f2f5]">
-        <p className="text-gray-500">Select a user or group to start chatting</p>
+      <div className="flex flex-col items-center justify-center h-full bg-[#f0f2f5] ">
+      
+        <div className="flex justify-center">
+          <img
+            src="/whatsapp.png"
+            alt="WhatsApp Logo"
+            className="h-40 w-40"
+          />
+        </div>
+          <p className="text-gray-500 mt-10 text-2xl">Select a user or group to start chatting</p>
       </div>
     );
   }
@@ -1239,7 +1247,7 @@ export default function ChatInterface({
   return (
     <div className="flex flex-col h-full">
       {/* Mobile-optimized header component */}
-      <div className="flex fixed w-full top-0 right-0 z-40 md:static md:w-auto items-center justify-between p-2.5 md:p-3 bg-[#008069] md:bg-[#f0f2f5] border-b border-gray-200 text-white md:text-black">
+      <div className="flex fixed w-full top-0 right-0 z-40 md:z-0 md:static md:w-auto items-center justify-between p-2.5 md:p-3 bg-[#008069] md:bg-[#f0f2f5] border-b border-gray-200 text-white md:text-black">
         <div className="flex items-center">
           {/* Back button for mobile */}
           {onBackClick && (
@@ -1325,7 +1333,7 @@ export default function ChatInterface({
           </div> */}
 
           {/* Options menu */}
-          {/* <DropdownMenu>
+          <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="text-white md:text-gray-800 p-1">
                 <MoreVertical className="h-5 w-5" />
@@ -1343,14 +1351,9 @@ export default function ChatInterface({
                   Edit User
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem>
-                Search Messages
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                Clear Chat
-              </DropdownMenuItem>
+              
             </DropdownMenuContent>
-          </DropdownMenu> */}
+          </DropdownMenu>
 
           {/* Edit button - only show for admin when a user is selected (desktop only) */}
           {isAdmin && selectedUser && !isGroupChat && (

@@ -56,10 +56,17 @@ export default function AdminLoginForm({ onSuccess }) {
   return (
     <Card className="w-full max-w-md mx-auto shadow-lg">
       <CardHeader className="space-y-1">
+        <div className="flex justify-center">
+          <img
+            src="/whatsapp.png"
+            alt="WhatsApp Logo"
+            className="h-12 w-12"
+          />
+        </div>
         <CardTitle className="text-2xl font-bold text-center">Admin Access</CardTitle>
-        <CardDescription className="text-center">
+        {/* <CardDescription className="text-center">
           Enter your credentials to access the admin dashboard
-        </CardDescription>
+        </CardDescription> */}
       </CardHeader>
       <CardContent className="space-y-4">
         {error && (

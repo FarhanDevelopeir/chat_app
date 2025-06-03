@@ -19,7 +19,7 @@ export default function UserLogin({ onSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
   const { socket, connected } = useSocket();
   const router = useRouter();
-  
+
   useEffect(() => {
     // Check if user has already logged in
     const savedUsername = localStorage.getItem('chat_username');
@@ -27,69 +27,69 @@ export default function UserLogin({ onSuccess }) {
 
     console.log('savedUsername:', savedUsername);
     console.log('deviceId:', deviceId);
-    
-    
+
+
     if (savedUsername && deviceId && socket) {
       setLoading(true);
-      
+
       // Attempt auto-login
       socket.emit('user:islogin', { username: savedUsername, deviceId });
     }
   }, [socket, connected]);
-  
+
   useEffect(() => {
     if (!socket) return;
-    
+
     // Handle login success
     const handleLoginSuccess = ({ user }) => {
       setLoading(false);
       localStorage.setItem('chat_username', user.username);
       // localStorage.setItem('chat_device_id', user.deviceId);
-      
+
       // Reload page to show chat interface
       window.location.reload();
     };
-    
+
     // Handle login error
     const handleLoginError = ({ error }) => {
       setLoading(false);
       setError(error);
     };
-    
+
     socket.on('user:loginSuccess', handleLoginSuccess);
     socket.on('user:loginError', handleLoginError);
-    
+
     return () => {
       socket.off('user:loginSuccess', handleLoginSuccess);
       socket.off('user:loginError', handleLoginError);
     };
   }, [socket, router]);
-  
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
     if (!username.trim()) {
       setError('Username is required');
       return;
     }
-    
+
     if (!password.trim()) {
       setError('Password is required');
       return;
     }
-    
+
     setLoading(true);
     setError('');
-    
+
     // // Generate or retrieve device ID
     let deviceId = localStorage.getItem('chat_device_id');
     if (!deviceId) {
       deviceId = `device_${Math.random().toString(36).substring(2, 15)}`;
       localStorage.setItem('chat_device_id', deviceId);
     }
-    
+
     // Send login request via socket with password
-    socket.emit('user:login', { username, password , deviceId});
+    socket.emit('user:login', { username, password, deviceId });
   };
 
   const togglePasswordVisibility = () => {
@@ -99,10 +99,17 @@ export default function UserLogin({ onSuccess }) {
   return (
     <Card className="w-full max-w-md mx-auto shadow-lg" >
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">Welcome to Chat</CardTitle>
-        <CardDescription className="text-center">
+        <div className="flex justify-center">
+          <img
+            src="/whatsapp.png"
+            alt="WhatsApp Logo"
+            className="h-12 w-12"
+          />
+        </div>
+        <CardTitle className="text-2xl font-bold text-center">Welcome to WinChat</CardTitle>
+        {/* <CardDescription className="text-center">
           Enter your credentials to start chatting
-        </CardDescription>
+        </CardDescription> */}
       </CardHeader>
       <CardContent className="space-y-4">
         {error && (
@@ -111,7 +118,7 @@ export default function UserLogin({ onSuccess }) {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        
+
         <div className="space-y-2">
           <Label htmlFor="username">Username</Label>
           <div className="relative">
@@ -125,7 +132,7 @@ export default function UserLogin({ onSuccess }) {
             />
           </div>
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
           <div className="relative">
@@ -152,9 +159,9 @@ export default function UserLogin({ onSuccess }) {
           </div>
         </div>
       </CardContent>
-      
+
       <CardFooter>
-        <Button 
+        <Button
           className="w-full bg-[#00a884] text-white hover:bg-[#008f72] focus:ring-2 focus:ring-offset-2 focus:ring-[#00a884] rounded-md"
           onClick={handleSubmit}
           disabled={loading}

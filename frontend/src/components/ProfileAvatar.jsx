@@ -125,7 +125,7 @@ const ProfileAvatar = ({ user, onProfileUpdate, socket, isAdmin = false }) => {
 
             {/* Dialog Overlay */}
             {isDialogOpen && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center ">
                     <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
                         {/* Header */}
                         <div className="flex items-center justify-between p-4 border-b border-gray-200">
