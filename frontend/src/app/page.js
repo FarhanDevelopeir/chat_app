@@ -94,33 +94,6 @@ export default function UserChatPage() {
     }
   }, [socket, isLoggedIn]);
 
-  // useEffect(() => {
-  //   if (!socket) return;
-
-  //   // Listen for admin status
-  //   socket.on('admin:status', (status) => {
-  //     setAdminOnline(status.isOnline);
-  //   });
-
-  //   // Request admin status on connection
-  //   socket.emit('user:requestAdminStatus');
-
-  //   // Listen for new messages
-  //   socket.on('message:receive', (message) => {
-  //     // If we're on mobile and not showing chat, show notification or badge
-  //     if (isMobile && !showChat && message.sender === 'admin') {
-  //       // Could implement notification badge here
-  //       console.log('New message received from admin');
-  //     }
-  //   });
-
-  //   return () => {
-  //     socket.off('admin:status');
-  //     socket.off('message:receive');
-  //   };
-  // }, [socket, isMobile, showChat]);
-
-
   // for issue resolve
   useEffect(() => {
   if (!socket) return;

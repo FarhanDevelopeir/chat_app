@@ -34,11 +34,12 @@ import {
 } from "@/components/ui/sheet";
 
 export default function UsersList({ 
+  socket, 
   users, 
   onSelectUser, 
   selectedUser, 
+  setSelectedUser,
   setIsLoggedIn, 
-  socket, 
   dialogOpen, 
   setDialogOpen, 
   userToEdit, 
@@ -57,6 +58,7 @@ export default function UsersList({
 
   // Check if viewing on mobile
   useEffect(() => {
+    
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };

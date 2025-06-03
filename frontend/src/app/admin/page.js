@@ -150,6 +150,9 @@ export default function AdminChatPage() {
 
   const handleBackClick = () => {
     setShowChat(false);
+    console.log("clicked back");
+    setSelectedUser(null);
+    setSelectedGroup(null);
   };
 
   if (loading) {
@@ -195,6 +198,7 @@ export default function AdminChatPage() {
               users={users}
               onSelectUser={handleSelectUser}
               selectedUser={selectedUser}
+              setSelectedUser={setSelectedUser}
               setIsLoggedIn={setIsLoggedIn}
               dialogOpen={dialogOpen}
               setDialogOpen={setDialogOpen}
