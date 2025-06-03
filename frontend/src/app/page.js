@@ -9,6 +9,7 @@ import UserLogin from '@/components/UserLogin';
 import ChatInterface from '@/components/ChatInterface';
 import { MessageCircle, LogOut, User, ArrowLeft, ChevronRight } from 'lucide-react';
 import ChatLoader from '@/components/ChatLoader';
+import ProfileAvatar from '@/components/ProfileAvatar';
 
 export default function UserChatPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -16,6 +17,8 @@ export default function UserChatPage() {
   const [adminOnline, setAdminOnline] = useState(false);
   const [showChat, setShowChat] = useState(false); // For mobile view transitions
   const [isMobile, setIsMobile] = useState(false); // Track if we're on mobile
+  const [currentUser, setCurrentUser] = useState(null);
+  const [admin, setAdmin] = useState(null);
   const { socket } = useSocket();
   const [userGroups, setUserGroups] = useState([]);
   const [selectedChat, setSelectedChat] = useState('admin'); // null, 'admin', or groupId
@@ -26,13 +29,13 @@ export default function UserChatPage() {
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     // Initial check
     checkIfMobile();
-    
+
     // Listen for resize events
     window.addEventListener('resize', checkIfMobile);
-    
+
     return () => {
       window.removeEventListener('resize', checkIfMobile);
     };
@@ -42,11 +45,11 @@ export default function UserChatPage() {
     // Check if user is already logged in
     const username = localStorage.getItem('chat_username');
     const deviceId = localStorage.getItem('chat_device_id');
-    
+
     if (username && deviceId) {
       setIsLoggedIn(true);
     }
-    
+
     setLoading(false);
   }, []);
 
@@ -85,41 +88,59 @@ export default function UserChatPage() {
         socket.emit('groups:fetch', { username });
       });
 
+      socket.on('user:profileUpdated', (userData) => {
+        if (userData.username === username) {
+          setCurrentUser(userData);
+        }
+      });
+
+      // Listen for login success to get user data
+      socket.on('user:loginSuccess', ({ user }) => {
+        setCurrentUser(user);
+      });
+
+      socket.on('admin:profiledata', (userData) => {
+        setAdmin(userData);
+      });
+
       return () => {
         socket.off('user:groupsList');
         socket.off('user:groupUpdated');
         socket.off('group:created');
         socket.off('group:updated');
+        socket.off('user:profileUpdated');
+        socket.off('user:loginSuccess');
+        socket.off('admin:profiledata');
       };
     }
   }, [socket, isLoggedIn]);
 
   // for issue resolve
   useEffect(() => {
-  if (!socket) return;
+    if (!socket) return;
 
-  // Listen for admin status
-  socket.on('admin:status', (status) => {
-    setAdminOnline(status.isOnline);
-  });
+    // Listen for admin status
+    socket.on('admin:status', (status) => {
+      setAdminOnline(status.isOnline);
+    });
 
-  // Request admin status on connection
-  socket.emit('user:requestAdminStatus');
+    // Request admin status on connection
+    socket.emit('user:requestAdminStatus');
 
-  // Listen for new messages - Remove mobile-specific filtering
-  socket.on('message:receive', (message) => {
-    // Just log the message, don't filter based on mobile state
-    if (message.sender === 'admin') {
-      console.log('New message received from admin');
-      // You can add notification badge logic here if needed
-    }
-  });
+    // Listen for new messages - Remove mobile-specific filtering
+    socket.on('message:receive', (message) => {
+      // Just log the message, don't filter based on mobile state
+      if (message.sender === 'admin') {
+        console.log('New message received from admin');
+        // You can add notification badge logic here if needed
+      }
+    });
 
-  return () => {
-    socket.off('admin:status');
-    socket.off('message:receive');
-  };
-}, [socket]);
+    return () => {
+      socket.off('admin:status');
+      socket.off('message:receive');
+    };
+  }, [socket]);
 
   // Function to handle logout
   const handleLogout = () => {
@@ -128,6 +149,13 @@ export default function UserChatPage() {
     setIsLoggedIn(false);
     socket.emit('user:logout'); // Notify server about logout
     setShowChat(false); // Reset mobile view
+  };
+
+  const handleProfileUpdate = (newProfilePicture) => {
+    setCurrentUser(prev => ({
+      ...prev,
+      profilePicture: newProfilePicture
+    }));
   };
 
   if (loading) {
@@ -156,16 +184,18 @@ export default function UserChatPage() {
           <UserLogin onSuccess={() => setIsLoggedIn(true)} />
         </div>
       )}
-      
+
       {/* Sidebar - Hidden on mobile when chat is showing */}
       <div className={`${isMobile && showChat ? 'hidden' : 'w-full md:w-1/4'} bg-white h-full flex flex-col`}>
         {/* Header */}
         <div className="bg-[#008069] text-white p-3 flex justify-between items-center sticky top-0 z-10">
           <div className="text-lg font-medium">WhatsApp</div>
           <div className="flex items-center space-x-2">
-            <button className="text-white p-1.5 rounded-full">
-              <User className="h-5 w-5" />
-            </button>
+            <ProfileAvatar
+              user={currentUser}
+              onProfileUpdate={handleProfileUpdate}
+              socket={socket}
+            />
             <button
               onClick={handleLogout}
               className="text-white p-1.5 rounded-full"
@@ -185,8 +215,16 @@ export default function UserChatPage() {
           >
             <div className="flex items-center">
               <div className="relative">
-                <div className="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center text-white font-bold">
-                  A
+                <div className="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center text-white font-bold overflow-hidden">
+                  {admin?.profilePicture ? (
+                    <img
+                      src={admin?.profilePicture}
+                      alt="Admin profile picture"
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    "A"
+                  )}
                 </div>
                 {adminOnline && (
                   <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
@@ -244,7 +282,7 @@ export default function UserChatPage() {
             </div>
           ))}
         </div>
-        
+
         {/* Empty state for mobile */}
         {isMobile && (
           <div className="flex-1 flex flex-col items-center justify-center p-4 bg-[#f0f2f5]">
@@ -260,7 +298,7 @@ export default function UserChatPage() {
           </div>
         )}
       </div>
-      
+
       <div className={`${isMobile && !showChat ? 'hidden' : 'w-full'} md:flex-1 flex flex-col`}>
         <ChatInterface
           onBackClick={isMobile ? handleBackClick : null}
@@ -268,6 +306,7 @@ export default function UserChatPage() {
           selectedGroup={chatType === 'group' ? selectedChat : null}
           chatType={chatType}
           groups={userGroups}
+          admin={admin}
         />
       </div>
     </div>

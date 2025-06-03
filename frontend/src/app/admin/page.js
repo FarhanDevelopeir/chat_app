@@ -33,6 +33,7 @@ export default function AdminChatPage() {
   const [activeTab, setActiveTab] = useState('users'); // 'users' or 'groups'
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
 
   // Check for mobile viewports
@@ -40,13 +41,13 @@ export default function AdminChatPage() {
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     // Initial check
     checkIfMobile();
-    
+
     // Listen for resize events
     window.addEventListener('resize', checkIfMobile);
-    
+
     return () => {
       window.removeEventListener('resize', checkIfMobile);
     };
@@ -113,22 +114,33 @@ export default function AdminChatPage() {
           );
         }
       })
+      socket.on('admin:profileUpdated', (userData) => {
+        setCurrentUser(userData);
+      });
+
+      socket.on('admin:profiledata', (userData) => {
+        setCurrentUser(userData);
+      });
 
       return () => {
         socket.off('groups:list');
         socket.off('group:created');
         socket.off('group:updated');
+        socket.off('admin:profileUpdated');
+        socket.off('admin:profiledata');
       };
     }
   }, [socket, isLoggedIn]);
+
+
 
   const handleSelectGroup = (groupId) => {
     setSelectedGroup(groupId);
     setSelectedUser(null); // Clear selected user when selecting group
   };
 
-  const handleSelectUser = (username) => {
-    setSelectedUser(username);
+  const handleSelectUser = (user) => {
+    setSelectedUser(user);
     setSelectedGroup(null);
   };
 
@@ -140,6 +152,13 @@ export default function AdminChatPage() {
     } else {
       setSelectedUser(null);
     }
+  };
+
+  const handleProfileUpdate = (newProfilePicture) => {
+    setCurrentUser(prev => ({
+      ...prev,
+      profilePicture: newProfilePicture
+    }));
   };
 
   const handleLogout = () => {
@@ -195,6 +214,7 @@ export default function AdminChatPage() {
           {activeTab === 'users' ? (
             <UsersList
               socket={socket}
+              currentUser={currentUser}
               users={users}
               onSelectUser={handleSelectUser}
               selectedUser={selectedUser}
@@ -205,6 +225,7 @@ export default function AdminChatPage() {
               userToEdit={userToEdit}
               isEditMode={isEditMode}
               newUsername={newUsername}
+              handleProfileUpdate={handleProfileUpdate}
               newPassword={newPassword}
               setNewUsername={setNewUsername}
               setNewPassword={setNewPassword}
