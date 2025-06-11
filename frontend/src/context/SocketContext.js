@@ -120,6 +120,8 @@ export function SocketProvider({ children }) {
   const [isGroupEditMode, setIsGroupEditMode] = useState(false);
   const [groupToEdit, setGroupToEdit] = useState(null);
 
+  console.log('notificationPermission',notificationPermission )
+
   // Refs
   const typingTimeout = useRef(null);
 
@@ -257,6 +259,7 @@ export function SocketProvider({ children }) {
 
       // Play notification sound
       if (message.sender !== username) {
+        showNotification(message, isAdmin);
         try {
           const audio = new Audio('https://res.cloudinary.com/duqzgojyp/video/upload/v1737207753/tpnevoboszj1rnsdsto1.mp3');
           audio.play().catch(err => console.log('Audio play error:', err));
