@@ -104,6 +104,10 @@ export default function ChatHeader({
         </div>
       </div>
 
+      <div className="text-sm text-gray-500 mt-2">
+        IP: {isAdmin ? selectedUser?.ipAddress || "Not Found" : admin?.ipAddress || "N/A"}
+      </div>
+
       {/* Action buttons */}
       <div className="flex items-center space-x-3">
         {isAdmin && isMobile && (
