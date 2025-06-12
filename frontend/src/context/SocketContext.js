@@ -73,35 +73,198 @@ export function SocketProvider({ children }) {
     return 'denied';
   }, []);
 
-  const showNotification = useCallback((message, isAdmin) => {
-    if (notificationPermission === 'granted' || notificationPermission === 'default') {
-      const senderName = isAdmin ? message.sender : 'Admin Support';
-      let notificationBody = '';
+  // const showNotification = useCallback((message, isAdmin) => {
+  //   if (notificationPermission === 'granted' || notificationPermission === 'default') {
+  //     const senderName = isAdmin ? message.sender : 'Admin Support';
+  //     let notificationBody = '';
 
-      if (message.audio) {
-        notificationBody = '🎵 Voice message';
-      } else if (message.file) {
-        notificationBody = message.file.type === 'image' ? '📷 Image' : '📎 File';
-      } else {
-        notificationBody = message.content;
-      }
+  //     if (message.audio) {
+  //       notificationBody = '🎵 Voice message';
+  //     } else if (message.file) {
+  //       notificationBody = message.file.type === 'image' ? '📷 Image' : '📎 File';
+  //     } else {
+  //       notificationBody = message.content;
+  //     }
 
-      const notification = new Notification(senderName, {
-        body: notificationBody,
-        icon: '/messenger.png',
-        badge: '/verify.png',
-        tag: `chat-${message.sender}`,
-        requireInteraction: false,
-        silent: false
-      });
+  //     const notification = new Notification(senderName, {
+  //       body: notificationBody,
+  //       icon: '/messenger.png',
+  //       badge: '/verify.png',
+  //       tag: `chat-${message.sender}`,
+  //       requireInteraction: false,
+  //       silent: false
+  //     });
 
-      setTimeout(() => notification.close(), 5000);
-      notification.onclick = () => {
-        window.focus();
-        notification.close();
-      };
+  //     setTimeout(() => notification.close(), 5000);
+  //     notification.onclick = () => {
+  //       window.focus();
+  //       notification.close();
+  //     };
+  //   }
+  // }, [notificationPermission]);
+
+  const showToastNotification = useCallback((message, isAdmin) => {
+    const senderName = isAdmin ? message.sender : 'Admin Support';
+    let notificationBody = '';
+
+    if (message.audio) {
+      notificationBody = '🎵 Voice message';
+    } else if (message.file) {
+      notificationBody = message.file.type === 'image' ? '📷 Image' : '📎 File';
+    } else {
+      notificationBody = message.content;
     }
-  }, [notificationPermission]);
+
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.innerHTML = `
+    <div class="toast-header">
+      <strong>${senderName}</strong>
+      <button class="toast-close" onclick="this.parentElement.parentElement.remove()">×</button>
+    </div>
+    <div class="toast-body">${notificationBody}</div>
+  `;
+
+    // Add CSS styles
+    toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #333;
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    z-index: 10000;
+    max-width: 300px;
+    animation: slideIn 0.3s ease-out;
+  `;
+
+    document.body.appendChild(toast);
+
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.remove();
+      }
+    }, 5000);
+
+    // Click to focus window
+    toast.onclick = () => {
+      window.focus();
+      toast.remove();
+    };
+  }, []);
+
+  const showTabNotification = useCallback((message) => {
+    const originalTitle = document.title;
+    const senderName = message.sender;
+
+    // Flash the title
+    let flashCount = 0;
+    const flashInterval = setInterval(() => {
+      document.title = flashCount % 2 === 0 ? `💬 New message from ${senderName}` : originalTitle;
+      flashCount++;
+
+      if (flashCount >= 10) { // Flash 5 times
+        clearInterval(flashInterval);
+        document.title = originalTitle;
+      }
+    }, 500);
+
+    // Reset title when user focuses the tab
+    const handleFocus = () => {
+      document.title = originalTitle;
+      clearInterval(flashInterval);
+      window.removeEventListener('focus', handleFocus);
+    };
+
+    window.addEventListener('focus', handleFocus);
+  }, []);
+
+  const vibrateDevice = useCallback(() => {
+    if ('vibrate' in navigator) {
+      // Vibrate pattern: vibrate for 200ms, pause for 100ms, vibrate for 200ms
+      navigator.vibrate([200, 100, 200]);
+    }
+  }, []);
+
+  const updateFaviconBadge = useCallback((count) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+
+    // Draw red circle
+    ctx.fillStyle = '#ff0000';
+    ctx.beginPath();
+    ctx.arc(24, 8, 8, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Draw count text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(count > 9 ? '9+' : count.toString(), 24, 12);
+
+    // Update favicon
+    const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+    link.type = 'image/x-icon';
+    link.rel = 'shortcut icon';
+    link.href = canvas.toDataURL();
+    document.getElementsByTagName('head')[0].appendChild(link);
+  }, []);
+
+  const showHybridNotification = useCallback((message, isAdmin) => {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (isMobile) {
+      // For mobile, use custom notifications
+      showToastNotification(message, isAdmin);
+      showTabNotification(message);
+      vibrateDevice();
+
+      // Update unread count
+      const unreadCount = (parseInt(localStorage.getItem('unreadCount') || '0')) + 1;
+      localStorage.setItem('unreadCount', unreadCount.toString());
+      updateFaviconBadge(unreadCount);
+
+    } else {
+      // For desktop, try native notifications first
+      if (notificationPermission === 'granted' || notificationPermission === 'default') {
+        // Your existing notification code
+        const senderName = isAdmin ? message.sender : 'Admin Support';
+        let notificationBody = '';
+
+        if (message.audio) {
+          notificationBody = '🎵 Voice message';
+        } else if (message.file) {
+          notificationBody = message.file.type === 'image' ? '📷 Image' : '📎 File';
+        } else {
+          notificationBody = message.content;
+        }
+
+        const notification = new Notification(senderName, {
+          body: notificationBody,
+          icon: '/messenger.png',
+          badge: '/verify.png',
+          tag: `chat-${message.sender}`,
+          requireInteraction: false,
+          silent: false
+        });
+
+        setTimeout(() => notification.close(), 5000);
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      } else {
+        // Fallback to toast for desktop too
+        showToastNotification(message, isAdmin);
+      }
+    }
+  }, [notificationPermission, showToastNotification, showTabNotification, vibrateDevice, updateFaviconBadge]);
 
   // Socket event handlers
   const setupSocketListeners = useCallback((socketInstance, username, isAdmin, selectedUser, selectedGroup, isGroupChat) => {
@@ -225,7 +388,7 @@ export function SocketProvider({ children }) {
 
       // Play notification sound
       if (message.sender !== username) {
-        showNotification(message, isAdmin);
+        showHybridNotification(message, isAdmin);
         try {
           const audio = new Audio('https://res.cloudinary.com/duqzgojyp/video/upload/v1737207753/tpnevoboszj1rnsdsto1.mp3');
           audio.play().catch(err => console.log('Audio play error:', err));
@@ -710,7 +873,7 @@ export function SocketProvider({ children }) {
     handleDeleteMessage,
     clearMessages,
     setupSocketListeners,
-    showNotification,
+    // showNotification,
     removeDuplicateMessages,
 
 
