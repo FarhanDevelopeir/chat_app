@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSocket } from '@/context/SocketContext';
 import ChatHeader from './ChatHeader';
 import MessagesList from './MessagesList';
@@ -58,7 +58,12 @@ export default function ChatInterface({
     handleEmojiReaction,
     handleDeleteMessage,
     clearMessages,
-    setupSocketListeners
+    setupSocketListeners,
+
+    hasMoreMessages,
+    loadingMoreMessages,
+    loadMoreMessages,
+    currentPage,
   } = useSocket();
 
   const messageInputRef = useRef(null);
@@ -105,6 +110,39 @@ export default function ChatInterface({
       }
     }
   }, [isAdmin, selectedUser, selectedGroup, socket, connected, isGroupChat, clearMessages]);
+
+
+  // Updated handleLoadMore function to be added to ChatInterface
+  const handleLoadMore = useCallback(() => {
+    if (!socket || !connected) return;
+
+    const username = isAdmin ? 'admin' : localStorage.getItem('chat_username');
+
+    if (isGroupChat && selectedGroup) {
+      // For group chats
+      socket.emit('messages:loadMore', {
+        page: currentPage + 1,
+        limit: 12,
+        groupId: selectedGroup
+      });
+    } else if (isAdmin && selectedUser?.username) {
+      // For admin selecting a user
+      socket.emit('messages:loadMore', {
+        page: currentPage + 1,
+        limit: 12,
+        sender: selectedUser.username,
+        receiver: 'admin'
+      });
+    } else {
+      // For regular user chatting with admin
+      socket.emit('messages:loadMore', {
+        page: currentPage + 1,
+        limit: 12,
+        sender: username,
+        receiver: 'admin'
+      });
+    }
+  }, [socket, connected, isAdmin, selectedUser, selectedGroup, isGroupChat, currentPage]);
 
   // Handle reply
   const handleReplyMessage = (replyToMessage) => {
@@ -260,6 +298,10 @@ export default function ChatInterface({
         setShowDropdown={setShowDropdown}
         isMobile={isMobile}
         setIsMobile={setIsMobile}
+        // New props for pagination
+        hasMoreMessages={hasMoreMessages}
+        loadingMoreMessages={loadingMoreMessages}
+        onLoadMore={handleLoadMore}
       />
 
       {error && (
