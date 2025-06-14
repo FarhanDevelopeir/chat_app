@@ -36,6 +36,59 @@ export default function AdminChatPage() {
   const [currentUser, setCurrentUser] = useState(null);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
 
+
+
+//   useEffect(() => {
+//   if (!socket) return;
+
+//   // Listen for updated groups list
+//   const handleGroupsListUpdated = (updatedGroups) => {
+//     // Filter groups where admin is a member
+//     const adminGroups = updatedGroups.filter(group =>
+//       group.members.includes('admin')
+//     );
+//     setGroups(adminGroups);
+//   };
+
+//   socket.on('groups:listUpdated', handleGroupsListUpdated);
+
+//   return () => {
+//     socket.off('groups:listUpdated', handleGroupsListUpdated);
+//   };
+// }, [socket]);
+
+
+
+// Updated useEffect for socket listeners
+useEffect(() => {
+  if (!socket) return;
+
+  // Listen for updated groups list
+  const handleGroupsListUpdated = (updatedGroups) => {
+    // Filter groups where admin is a member and update state
+    const adminGroups = updatedGroups.filter(group =>
+      group.members.includes('admin')
+    );
+    setGroups(adminGroups);
+  };
+
+  // Listen for new group messages to update groups list order
+  const handleGroupMessage = (message) => {
+    // Fetch fresh groups list to ensure proper sorting
+    if (socket) {
+      socket.emit('groups:fetch', { username: 'admin' });
+    }
+  };
+
+  socket.on('groups:listUpdated', handleGroupsListUpdated);
+  socket.on('group:messageReceive', handleGroupMessage);
+
+  return () => {
+    socket.off('groups:listUpdated', handleGroupsListUpdated);
+    socket.off('group:messageReceive', handleGroupMessage);
+  };
+}, [socket]);
+
   // Check for mobile viewports
   useEffect(() => {
     const checkIfMobile = () => {
@@ -85,53 +138,106 @@ export default function AdminChatPage() {
     };
   }, [socket]);
 
+  // useEffect(() => {
+  //   if (socket && isLoggedIn) {
+  //     // Fetch groups for admin
+  //     socket.emit('groups:fetch', { username: 'admin' });
+
+  //     // Listen for groups list updates
+  //     socket.on('groups:list', (groupsList) => {
+  //       // Filter groups where admin is a member
+  //       const adminGroups = groupsList.filter(group =>
+  //         group.members.includes('admin')
+  //       );
+  //       setGroups(adminGroups);
+  //     });
+
+  //     // Listen for new group creation
+  //     socket.on('group:created', (data) => {
+  //       if (data.group.members.includes('admin')) {
+  //         setGroups(prev => [data.group, ...prev]);
+  //       }
+  //     });
+  //     socket.on('group:updated', (data) => {
+  //       if (data.group.members.includes('admin')) {
+  //         setGroups(prev =>
+  //           prev.map(group =>
+  //             group._id === data.group._id ? data.group : group
+  //           )
+  //         );
+  //       }
+  //     })
+  //     socket.on('admin:profileUpdated', (userData) => {
+  //       setCurrentUser(userData);
+  //     });
+
+  //     socket.on('admin:profiledata', (userData) => {
+  //       setCurrentUser(userData);
+  //     });
+
+  //     return () => {
+  //       socket.off('groups:list');
+  //       socket.off('group:created');
+  //       socket.off('group:updated');
+  //       socket.off('admin:profileUpdated');
+  //       socket.off('admin:profiledata');
+  //     };
+  //   }
+  // }, [socket, isLoggedIn]);
+
+
+  // Updated main socket effect
+
+
+
   useEffect(() => {
-    if (socket && isLoggedIn) {
-      // Fetch groups for admin
-      socket.emit('groups:fetch', { username: 'admin' });
+  if (socket && isLoggedIn) {
+    // Fetch groups for admin
+    socket.emit('groups:fetch', { username: 'admin' });
 
-      // Listen for groups list updates
-      socket.on('groups:list', (groupsList) => {
-        // Filter groups where admin is a member
-        const adminGroups = groupsList.filter(group =>
-          group.members.includes('admin')
+    // Listen for groups list updates
+    socket.on('groups:list', (groupsList) => {
+      // Filter groups where admin is a member
+      const adminGroups = groupsList.filter(group =>
+        group.members.includes('admin')
+      );
+      setGroups(adminGroups);
+    });
+
+    // Listen for new group creation
+    socket.on('group:created', (data) => {
+      if (data.group.members.includes('admin')) {
+        setGroups(prev => [data.group, ...prev]);
+      }
+    });
+
+    socket.on('group:updated', (data) => {
+      if (data.group.members.includes('admin')) {
+        setGroups(prev =>
+          prev.map(group =>
+            group._id === data.group._id ? data.group : group
+          )
         );
-        setGroups(adminGroups);
-      });
+      }
+    });
 
-      // Listen for new group creation
-      socket.on('group:created', (data) => {
-        if (data.group.members.includes('admin')) {
-          setGroups(prev => [data.group, ...prev]);
-        }
-      });
-      socket.on('group:updated', (data) => {
-        if (data.group.members.includes('admin')) {
-          setGroups(prev =>
-            prev.map(group =>
-              group._id === data.group._id ? data.group : group
-            )
-          );
-        }
-      })
-      socket.on('admin:profileUpdated', (userData) => {
-        setCurrentUser(userData);
-      });
+    socket.on('admin:profileUpdated', (userData) => {
+      setCurrentUser(userData);
+    });
 
-      socket.on('admin:profiledata', (userData) => {
-        setCurrentUser(userData);
-      });
+    socket.on('admin:profiledata', (userData) => {
+      setCurrentUser(userData);
+    });
 
-      return () => {
-        socket.off('groups:list');
-        socket.off('group:created');
-        socket.off('group:updated');
-        socket.off('admin:profileUpdated');
-        socket.off('admin:profiledata');
-      };
-    }
-  }, [socket, isLoggedIn]);
-
+    return () => {
+      socket.off('groups:list');
+      socket.off('group:created');
+      socket.off('group:updated');
+      socket.off('admin:profileUpdated');
+      socket.off('admin:profiledata');
+    };
+  }
+}, [socket, isLoggedIn]);
 
 
   const handleSelectGroup = (groupId) => {
@@ -238,6 +344,8 @@ export default function AdminChatPage() {
               setIsLoggedIn={setIsLoggedIn}
               socket={socket}
               setCreateGroupOpen={setCreateGroupOpen}
+              currentUser="admin"
+             
             />
           )}
         </div>

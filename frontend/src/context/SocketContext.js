@@ -73,35 +73,7 @@ export function SocketProvider({ children }) {
     return 'denied';
   }, []);
 
-  // const showNotification = useCallback((message, isAdmin) => {
-  //   if (notificationPermission === 'granted' || notificationPermission === 'default') {
-  //     const senderName = isAdmin ? message.sender : 'Admin Support';
-  //     let notificationBody = '';
 
-  //     if (message.audio) {
-  //       notificationBody = '🎵 Voice message';
-  //     } else if (message.file) {
-  //       notificationBody = message.file.type === 'image' ? '📷 Image' : '📎 File';
-  //     } else {
-  //       notificationBody = message.content;
-  //     }
-
-  //     const notification = new Notification(senderName, {
-  //       body: notificationBody,
-  //       icon: '/messenger.png',
-  //       badge: '/verify.png',
-  //       tag: `chat-${message.sender}`,
-  //       requireInteraction: false,
-  //       silent: false
-  //     });
-
-  //     setTimeout(() => notification.close(), 5000);
-  //     notification.onclick = () => {
-  //       window.focus();
-  //       notification.close();
-  //     };
-  //   }
-  // }, [notificationPermission]);
 
   const showToastNotification = useCallback((message, isAdmin) => {
     const senderName = isAdmin ? message.sender : 'Admin Support';
@@ -345,8 +317,73 @@ export function SocketProvider({ children }) {
     };
 
 
+    // const handleReceiveMessage = (message) => {
+    //   setMessages(prevMessages => {
+    //     const messageExists = prevMessages.some(m =>
+    //       (m._id && m._id === message._id) ||
+    //       (m.content === message.content &&
+    //         m.sender === message.sender &&
+    //         ((isGroupChat && m.groupId === message.groupId) ||
+    //           (!isGroupChat && m.receiver === message.receiver)) &&
+    //         Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 5000)
+    //     );
+
+    //     if (messageExists) return prevMessages;
+
+    //     // Filter based on chat type
+    //     if (isGroupChat) {
+    //       if (message.groupId !== selectedGroup) return prevMessages;
+    //     } else {
+    //       if (isAdmin && message.sender !== selectedUser?.username && message.receiver !== selectedUser?.username) {
+    //         return prevMessages;
+    //       }
+    //     }
+
+    //     const newMessages = [...prevMessages, message];
+    //     return removeDuplicateMessages(newMessages);
+    //   });
+
+    //   // Mark as read and play notification
+    //   if (isGroupChat && message.groupId === selectedGroup) {
+    //     socketInstance.emit('group:markRead', {
+    //       groupId: selectedGroup,
+    //       userId: username
+    //     });
+    //   } else if (!isGroupChat && message.receiver === username) {
+    //     if (!isAdmin || (isAdmin && selectedUser?.username === message.sender)) {
+    //       socketInstance.emit('messages:markRead', {
+    //         sender: message.sender,
+    //         receiver: message.receiver
+    //       });
+    //     }
+    //   }
+
+    //   // Play notification sound
+    //   if (message.sender !== username) {
+    //     showHybridNotification(message, isAdmin);
+    //     try {
+    //       const audio = new Audio('https://res.cloudinary.com/duqzgojyp/video/upload/v1737207753/tpnevoboszj1rnsdsto1.mp3');
+    //       audio.play().catch(err => console.log('Audio play error:', err));
+    //     } catch (error) {
+    //       console.log('Notification sound error:', error);
+    //     }
+    //   }
+    // };
+
+
+
+    // Updated handleReceiveMessage with safety checks
+
+
     const handleReceiveMessage = (message) => {
+      if (!message) return;
+
       setMessages(prevMessages => {
+        // Safety check
+        if (!prevMessages || !Array.isArray(prevMessages)) {
+          return [message];
+        }
+
         const messageExists = prevMessages.some(m =>
           (m._id && m._id === message._id) ||
           (m.content === message.content &&
@@ -370,6 +407,7 @@ export function SocketProvider({ children }) {
         const newMessages = [...prevMessages, message];
         return removeDuplicateMessages(newMessages);
       });
+
 
       // Mark as read and play notification
       if (isGroupChat && message.groupId === selectedGroup) {
@@ -397,6 +435,10 @@ export function SocketProvider({ children }) {
         }
       }
     };
+
+
+
+
 
     const handleMessageSent = (message) => {
       setMessages(prevMessages => {
@@ -440,25 +482,65 @@ export function SocketProvider({ children }) {
       });
     };
 
+    // const handleGroupReadStatusUpdate = (data) => {
+    //   const { groupId, readBy, updatedMessages } = data;
+    //   setMessages(prevMessages => {
+    //     return prevMessages.map(msg => {
+    //       const updatedMsg = updatedMessages.find(updated =>
+    //         updated._id === msg._id ||
+    //         (updated.content === msg.content &&
+    //           updated.sender === msg.sender &&
+    //           updated.groupId === msg.groupId &&
+    //           Math.abs(new Date(updated.createdAt) - new Date(msg.createdAt)) < 5000)
+    //       );
+
+    //       if (updatedMsg) {
+    //         return { ...msg, isRead: true };
+    //       }
+    //       return msg;
+    //     });
+    //   });
+    // };
+
+    // Updated handleGroupReadStatusUpdate function in SocketContext
+
+
+    // Updated handleGroupReadStatusUpdate with safety checks
     const handleGroupReadStatusUpdate = (data) => {
       const { groupId, readBy, updatedMessages } = data;
-      setMessages(prevMessages => {
-        return prevMessages.map(msg => {
-          const updatedMsg = updatedMessages.find(updated =>
-            updated._id === msg._id ||
-            (updated.content === msg.content &&
-              updated.sender === msg.sender &&
-              updated.groupId === msg.groupId &&
-              Math.abs(new Date(updated.createdAt) - new Date(msg.createdAt)) < 5000)
-          );
 
-          if (updatedMsg) {
-            return { ...msg, isRead: true };
+      setMessages(prevMessages => {
+        // Safety check for prevMessages
+        if (!prevMessages || !Array.isArray(prevMessages)) {
+          return [];
+        }
+
+        return prevMessages.map(msg => {
+          // Safety check for updatedMessages
+          if (updatedMessages && Array.isArray(updatedMessages)) {
+            const updatedMsg = updatedMessages.find(updated =>
+              (updated._id && msg._id && updated._id === msg._id) ||
+              (updated.content === msg.content &&
+                updated.sender === msg.sender &&
+                updated.groupId === msg.groupId &&
+                Math.abs(new Date(updated.createdAt) - new Date(msg.createdAt)) < 5000)
+            );
+
+            if (updatedMsg) {
+              return { ...msg, isRead: true };
+            }
+          } else {
+            // Fallback: mark messages as read based on groupId and readBy
+            if (msg.groupId === groupId && msg.sender !== readBy) {
+              return { ...msg, isRead: true };
+            }
           }
+
           return msg;
         });
       });
     };
+
 
     const handleEmojiReactionUpdate = (data) => {
       const { messageId, reactions } = data;
