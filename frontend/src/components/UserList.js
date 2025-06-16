@@ -58,6 +58,7 @@ export default function UsersList({
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState({}); // Store unread counts for each user
+  const [matchingIPs, setMatchingIPs] = useState([]);
 
   // Check if viewing on mobile
   useEffect(() => {
@@ -167,6 +168,28 @@ export default function UsersList({
     setSortedUsers(filtered);
   }, [users, unreadCounts, searchTerm, filter]);
 
+  useEffect(() => {
+    if (users && users.length > 0) {
+      // Calculate matching IPs from users prop
+      const ipGroups = {};
+      users.forEach(user => {
+        if (user.ipAddress) {
+          if (!ipGroups[user.ipAddress]) {
+            ipGroups[user.ipAddress] = [];
+          }
+          ipGroups[user.ipAddress].push(user.username);
+        }
+      });
+
+      // Only keep IPs with multiple users
+      const matches = Object.entries(ipGroups)
+        .filter(([ip, usernames]) => usernames.length > 1)
+        .map(([ip, usernames]) => ({ ip, users: usernames }));
+
+      setMatchingIPs(matches);
+    }
+  }, [users]);
+
   // Calculate total unread messages
   const totalUnreadMessages = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
 
@@ -260,6 +283,20 @@ export default function UsersList({
               <Button
                 variant="ghost"
                 className="justify-start"
+                onClick={() => setFilter('ips')}
+              >
+                User IPs
+                {matchingIPs.length > 0 && (
+                  <Badge variant="outline" className="ml-2 bg-red-500 text-white border-none">
+                    {matchingIPs.length}
+                  </Badge>
+                )}
+              </Button>
+            </SheetClose>
+            <SheetClose asChild>
+              <Button
+                variant="ghost"
+                className="justify-start"
                 onClick={() => setDialogOpen(true)}
               >
                 <UserPlus className="h-4 w-4 mr-2" /> Add New User
@@ -277,6 +314,93 @@ export default function UsersList({
         </div>
       </SheetContent>
     </Sheet>
+  );
+
+  const renderIPsView = () => (
+    <div className="p-4">
+      <div className="space-y-4">
+        {/* All Users with IPs */}
+        <div>
+          <h3 className="hidden md:visible text-sm font-semibold text-slate-700 mb-3">User IP Addresses</h3>
+          <div className="space-y-2">
+            {users.filter(user => user?.ipAddress).map((user) => (
+              <div key={user.username} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Avatar className="h-8 w-8 bg-slate-200">
+                      <AvatarImage
+                        src={user.profilePicture || user.avatar}
+                        alt={`${user.username}'s profile picture`}
+                      />
+                      <AvatarFallback className="bg-[#00a884] text-white text-xs">
+                        {user.username.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    {user.isOnline && (
+                      <span className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-green-500 ring-2 ring-white"></span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{user.username}</p>
+                    <p className="text-xs text-slate-500">
+                      {user.isOnline ? 'Online' : `Last seen: ${formatLastSeen(user.lastSeen)}`}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-mono text-slate-700">{user.ipAddress}</p>
+                  <p className="text-xs text-slate-500">IP Address</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Matching IPs Section */}
+        {matchingIPs.length > 0 && (
+          <div className="border-t pt-4">
+            <h3 className="text-sm font-semibold text-red-600 mb-3 flex items-center gap-2">
+              <span className="h-2 w-2 bg-red-500 rounded-full"></span>
+              Matching IP Addresses ({matchingIPs.length})
+            </h3>
+            <div className="space-y-3">
+              {matchingIPs.map(({ ip, users: matchedUsers }, index) => (
+                <div key={index} className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-mono text-sm font-semibold text-red-800">{ip}</p>
+                    <Badge variant="destructive" className="bg-red-500">
+                      {matchedUsers.length} users
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {matchedUsers.map(username => {
+                      const user = users.find(u => u.username === username);
+                      return (
+                        <div key={username} className="flex items-center gap-2 bg-white p-2 rounded border">
+                          <Avatar className="h-6 w-6 bg-slate-200">
+                            <AvatarImage
+                              src={user?.profilePicture || user?.avatar}
+                              alt={`${username}'s profile picture`}
+                            />
+                            <AvatarFallback className="bg-[#00a884] text-white text-xs">
+                              {username.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm text-slate-700">{username}</span>
+                          {user?.isOnline && (
+                            <span className="h-2 w-2 bg-green-500 rounded-full"></span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 
   return (
@@ -347,6 +471,19 @@ export default function UsersList({
                 </Badge>
               )}
             </Button>
+            <Button
+              variant={filter === 'ips' ? "default" : "outline"}
+              size="sm"
+              className={filter === 'ips' ? "bg-[#00a884] hover:bg-[#00a884]" : ""}
+              onClick={() => setFilter('ips')}
+            >
+              User IPs
+              {matchingIPs.length > 0 && (
+                <Badge variant="outline" className="ml-1 bg-white text-red-500 border-white">
+                  {matchingIPs.length}
+                </Badge>
+              )}
+            </Button>
           </div>
 
           <Button
@@ -362,11 +499,16 @@ export default function UsersList({
         {/* Mobile filters - simple text displays */}
         <div className="flex justify-between items-center mt-2 md:hidden">
           <div className="text-sm font-medium text-slate-600">
-            {filter === 'all' ? 'All Users' : 'Unread Messages'}
+            {filter === 'all' ? 'All Users' : filter === 'ips' ?  'User IP Addresses' : 'Unread Messages'}
           </div>
           {filter === 'unread' && totalUnreadMessages > 0 && (
             <Badge variant="default" className="bg-[#00a884]">
               {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
+            </Badge>
+          )}
+          {filter === 'ips' && matchingIPs.length > 0 && (
+            <Badge variant="default" className="bg-red-500">
+              {matchingIPs.length} matches
             </Badge>
           )}
         </div>
@@ -374,7 +516,9 @@ export default function UsersList({
 
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-[calc(100vh-140px)] md:h-[calc(100vh-220px)]">
-          {sortedUsers.length === 0 ? (
+          {filter === 'ips' ? (
+            renderIPsView()
+          ) : sortedUsers.length === 0 ? (
             <div className="p-4 text-center text-slate-500">
               {filter === 'unread' ? 'No unread messages' : 'No users available'}
             </div>
@@ -387,6 +531,7 @@ export default function UsersList({
                     } ${user.unreadCount > 0 ? 'bg-green-50 border-l-4 border-l-green-500' : ''}`}
                   onClick={() => handleSelectUser(user)}
                 >
+                  {/* Existing user item content remains the same */}
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <Avatar className="h-10 w-10 md:h-12 md:w-12 bg-slate-200">
