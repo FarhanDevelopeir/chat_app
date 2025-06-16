@@ -36,29 +36,6 @@ export default function AdminChatPage() {
   const [currentUser, setCurrentUser] = useState(null);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
 
-
-
-//   useEffect(() => {
-//   if (!socket) return;
-
-//   // Listen for updated groups list
-//   const handleGroupsListUpdated = (updatedGroups) => {
-//     // Filter groups where admin is a member
-//     const adminGroups = updatedGroups.filter(group =>
-//       group.members.includes('admin')
-//     );
-//     setGroups(adminGroups);
-//   };
-
-//   socket.on('groups:listUpdated', handleGroupsListUpdated);
-
-//   return () => {
-//     socket.off('groups:listUpdated', handleGroupsListUpdated);
-//   };
-// }, [socket]);
-
-
-
 // Updated useEffect for socket listeners
 useEffect(() => {
   if (!socket) return;

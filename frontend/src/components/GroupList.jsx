@@ -40,10 +40,10 @@
 //     const checkIfMobile = () => {
 //       setIsMobile(window.innerWidth < 768);
 //     };
-    
+
 //     checkIfMobile();
 //     window.addEventListener('resize', checkIfMobile);
-    
+
 //     return () => {
 //       window.removeEventListener('resize', checkIfMobile);
 //     };
@@ -245,12 +245,13 @@ import {
   SheetTrigger,
   SheetClose
 } from "@/components/ui/sheet";
+import { useSocket } from '@/context/SocketContext';
 
-export default function GroupsList({ 
-  groups, 
-  onSelectGroup, 
-  selectedGroup, 
-  setIsLoggedIn, 
+export default function GroupsList({
+  groups,
+  onSelectGroup,
+  selectedGroup,
+  setIsLoggedIn,
   socket,
   setCreateGroupOpen,
   currentUser // Add currentUser prop
@@ -262,80 +263,103 @@ export default function GroupsList({
   const [isMobile, setIsMobile] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState({}); // Track unread messages per group
   const [lastMessageTime, setLastMessageTime] = useState({}); // Track last message time per group
+  const { latestMessages, formatMessageForDisplay } = useSocket();
+
+
+
+  const getUserDisplayMessage = (user) => {
+    const latestMsg = latestMessages['admin'] || latestMessages[user.username];
+
+    if (latestMsg) {
+      const prefix = latestMsg.sender === user.username ? '' : 'You: ';
+      return prefix + formatMessageForDisplay(latestMsg);
+    }
+
+    if (user.isOnline) {
+      return (
+        <span className="flex items-center gap-1 text-green-600">
+          <Circle className="h-2 w-2 fill-green-500" /> Online
+        </span>
+      );
+    }
+
+    return `Last seen: ${formatLastSeen(user.lastSeen)}`;
+  };
+
 
   // Check if viewing on mobile
   useEffect(() => {
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkIfMobile();
     window.addEventListener('resize', checkIfMobile);
-    
+
     return () => {
       window.removeEventListener('resize', checkIfMobile);
     };
   }, []);
 
- 
-// Updated useEffect for socket event listeners
-useEffect(() => {
-  if (!socket) return;
 
-  // Listen for new group messages
-  const handleGroupMessage = (message) => {
-    const groupId = message.groupId;
-    
-    // Don't count messages from current user as unread
-    if (message.sender !== currentUser) {
-      setUnreadCounts(prev => ({
+  // Updated useEffect for socket event listeners
+  useEffect(() => {
+    if (!socket) return;
+
+    // Listen for new group messages
+    const handleGroupMessage = (message) => {
+      const groupId = message.groupId;
+
+      // Don't count messages from current user as unread
+      if (message.sender !== currentUser) {
+        setUnreadCounts(prev => ({
+          ...prev,
+          [groupId]: (prev[groupId] || 0) + 1
+        }));
+      }
+
+      // Update last message time for sorting - this will trigger re-sorting
+      setLastMessageTime(prev => ({
         ...prev,
-        [groupId]: (prev[groupId] || 0) + 1
+        [groupId]: new Date(message.createdAt || Date.now())
       }));
-    }
-    
-    // Update last message time for sorting - this will trigger re-sorting
-    setLastMessageTime(prev => ({
-      ...prev,
-      [groupId]: new Date(message.createdAt || Date.now())
-    }));
-  };
+    };
 
-  // Listen for read status updates
-  const handleReadStatusUpdate = (data) => {
-    if (data.readBy === currentUser) {
-      setUnreadCounts(prev => ({
-        ...prev,
-        [data.groupId]: 0
-      }));
-    }
-  };
+    // Listen for read status updates
+    const handleReadStatusUpdate = (data) => {
+      if (data.readBy === currentUser) {
+        setUnreadCounts(prev => ({
+          ...prev,
+          [data.groupId]: 0
+        }));
+      }
+    };
 
-  // Listen for updated groups list from server
-  const handleGroupsListUpdated = (groupsData) => {
-    // Update unread counts and last message times from server data
-    const counts = {};
-    const times = {};
-    
-    groupsData.forEach(group => {
-      counts[group._id] = group.unreadCount || 0;
-      times[group._id] = group.lastMessageTime ? new Date(group.lastMessageTime) : new Date(group.createdAt);
-    });
-    
-    setUnreadCounts(counts);
-    setLastMessageTime(times);
-  };
+    // Listen for updated groups list from server
+    const handleGroupsListUpdated = (groupsData) => {
+      // Update unread counts and last message times from server data
+      const counts = {};
+      const times = {};
 
-  socket.on('group:messageReceive', handleGroupMessage);
-  socket.on('group:readStatusUpdate', handleReadStatusUpdate);
-  socket.on('groups:listUpdated', handleGroupsListUpdated);
+      groupsData.forEach(group => {
+        counts[group._id] = group.unreadCount || 0;
+        times[group._id] = group.lastMessageTime ? new Date(group.lastMessageTime) : new Date(group.createdAt);
+      });
 
-  return () => {
-    socket.off('group:messageReceive', handleGroupMessage);
-    socket.off('group:readStatusUpdate', handleReadStatusUpdate);
-    socket.off('groups:listUpdated', handleGroupsListUpdated);
-  };
-}, [socket, currentUser]);
+      setUnreadCounts(counts);
+      setLastMessageTime(times);
+    };
+
+    socket.on('group:messageReceive', handleGroupMessage);
+    socket.on('group:readStatusUpdate', handleReadStatusUpdate);
+    socket.on('groups:listUpdated', handleGroupsListUpdated);
+
+    return () => {
+      socket.off('group:messageReceive', handleGroupMessage);
+      socket.off('group:readStatusUpdate', handleReadStatusUpdate);
+      socket.off('groups:listUpdated', handleGroupsListUpdated);
+    };
+  }, [socket, currentUser]);
 
   // Sort and filter groups
   useEffect(() => {
@@ -360,24 +384,24 @@ useEffect(() => {
     socket.emit('admin:logout');
   };
 
- // Updated handleSelectGroup function
-const handleSelectGroup = (groupId) => {
-  // Clear unread count immediately for better UX
-  setUnreadCounts(prev => ({
-    ...prev,
-    [groupId]: 0
-  }));
-  
-  // Emit mark as read event to server
-  if (socket && currentUser) {
-    socket.emit('group:markRead', {
-      groupId,
-      userId: currentUser
-    });
-  }
-  
-  onSelectGroup(groupId);
-};
+  // Updated handleSelectGroup function
+  const handleSelectGroup = (groupId) => {
+    // Clear unread count immediately for better UX
+    setUnreadCounts(prev => ({
+      ...prev,
+      [groupId]: 0
+    }));
+
+    // Emit mark as read event to server
+    if (socket && currentUser) {
+      socket.emit('group:markRead', {
+        groupId,
+        userId: currentUser
+      });
+    }
+
+    onSelectGroup(groupId);
+  };
   // Mobile menu component
   const MobileMenu = () => (
     <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
@@ -400,18 +424,18 @@ const handleSelectGroup = (groupId) => {
         <div className="px-4 py-2">
           <div className="flex flex-col space-y-2">
             <SheetClose asChild>
-              <Button 
-                variant="ghost" 
-                className="justify-start" 
+              <Button
+                variant="ghost"
+                className="justify-start"
                 onClick={() => setCreateGroupOpen(true)}
               >
                 <UserPlus className="h-4 w-4 mr-2" /> Create Group
               </Button>
             </SheetClose>
             <div className="border-t border-gray-200 my-2"></div>
-            <Button 
-              variant="ghost" 
-              className="justify-start text-red-500 hover:text-red-600 hover:bg-red-50" 
+            <Button
+              variant="ghost"
+              className="justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
               onClick={handleLogout}
             >
               <LogOut className="h-4 w-4 mr-2" /> Logout
@@ -485,13 +509,12 @@ const handleSelectGroup = (groupId) => {
               {sortedGroups.map((group) => {
                 const unreadCount = unreadCounts[group._id] || 0;
                 const isSelected = selectedGroup === group._id;
-                
+
                 return (
                   <div
                     key={group._id}
-                    className={`p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors ${
-                      isSelected ? 'bg-slate-100' : ''
-                    }`}
+                    className={`p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors ${isSelected ? 'bg-slate-100' : ''
+                      }`}
                     onClick={() => handleSelectGroup(group._id)}
                   >
                     <div className="flex items-center gap-3">
@@ -505,9 +528,8 @@ const handleSelectGroup = (groupId) => {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-baseline">
-                          <p className={`text-sm truncate ${
-                            unreadCount > 0 ? 'font-semibold text-slate-900' : 'font-medium text-slate-900'
-                          }`}>
+                          <p className={`text-sm truncate ${unreadCount > 0 ? 'font-semibold text-slate-900' : 'font-medium text-slate-900'
+                            }`}>
                             {group.name}
                           </p>
                           <div className="flex items-center gap-2">
@@ -517,8 +539,8 @@ const handleSelectGroup = (groupId) => {
                               ).toLocaleDateString()}
                             </span>
                             {unreadCount > 0 && (
-                              <Badge 
-                                variant="default" 
+                              <Badge
+                                variant="default"
                                 className="bg-[#00a884] hover:bg-[#009874] text-white text-xs px-2 py-0.5 min-w-[20px] h-5 flex items-center justify-center rounded-full"
                               >
                                 {unreadCount > 99 ? '99+' : unreadCount}
@@ -527,9 +549,28 @@ const handleSelectGroup = (groupId) => {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between mt-1">
+                        {/* <div className="flex items-center justify-between mt-1">
                           <p className="text-xs text-slate-500 truncate pr-2">
                             {group.members.length} members
+                          </p>
+                        </div> */}
+
+                        <div className="flex items-center justify-between mt-1">
+                          <p className="text-xs text-slate-500 truncate pr-2">
+                            {(() => {
+                              const latestMsg = latestMessages[group._id];
+
+                              if (latestMsg) {
+                                const prefix = latestMsg.sender === currentUser ? 'You: ' : `${latestMsg.sender}: `;
+                                const messageText = latestMsg.isFile ? '📎 File' :
+                                  latestMsg.isAudio ? '🎵 Audio' :
+                                    latestMsg.content;
+                                const displayText = prefix + messageText;
+                                return displayText.length > 30 ? displayText.substring(0, 30) + '...' : displayText;
+                              }
+
+                              return `${group.members.length} members`;
+                            })()}
                           </p>
                         </div>
                       </div>

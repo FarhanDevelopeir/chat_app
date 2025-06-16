@@ -33,6 +33,7 @@ import {
   SheetClose
 } from "@/components/ui/sheet";
 import ProfileAvatar from './ProfileAvatar';
+import { useSocket } from '@/context/SocketContext';
 
 export default function UsersList({
   socket,
@@ -58,6 +59,7 @@ export default function UsersList({
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState({}); // Store unread counts for each user
+  const { latestMessages, formatMessageForDisplay } = useSocket();
 
   // Check if viewing on mobile
   useEffect(() => {
@@ -76,6 +78,8 @@ export default function UsersList({
       window.removeEventListener('resize', checkIfMobile);
     };
   }, []);
+
+ 
 
   // Request unread counts when component mounts or when socket changes
   useEffect(() => {
@@ -415,7 +419,7 @@ export default function UsersList({
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between mt-1">
+                      {/* <div className="flex items-center justify-between mt-1">
                         <p className={`text-xs truncate pr-2 ${user.unreadCount > 0 ? 'text-slate-700 font-medium' : 'text-slate-500'
                           }`}>
                           {user.lastMessage ? user.lastMessage.substring(0, 30) + (user.lastMessage.length > 30 ? '...' : '') :
@@ -427,6 +431,43 @@ export default function UsersList({
                               `Last seen: ${formatLastSeen(user.lastSeen)}`
                             )
                           }
+                        </p>
+
+                        {user.unreadCount > 0 && (
+                          <Badge
+                            variant="default"
+                            className="bg-green-600 hover:bg-green-600 text-white min-w-[20px] h-5 px-2 text-xs font-semibold rounded-full flex items-center justify-center"
+                          >
+                            {user.unreadCount > 99 ? '99+' : user.unreadCount}
+                          </Badge>
+                        )}
+                      </div> */}
+
+                      {/* // Replace the existing message display section in UsersList with this: */}
+                      <div className="flex items-center justify-between mt-1">
+                        <p className={`text-xs truncate pr-2 ${user.unreadCount > 0 ? 'text-slate-700 font-medium' : 'text-slate-500'}`}>
+                          {(() => {
+                            const latestMsg = latestMessages['admin'] || latestMessages[user.username];
+
+                            if (latestMsg) {
+                              const prefix = latestMsg.sender === 'admin' ? 'You: ' : '';
+                              const messageText = latestMsg.isFile ? '📎 File' :
+                                latestMsg.isAudio ? '🎵 Audio' :
+                                  latestMsg.content;
+                              const displayText = prefix + messageText;
+                              return displayText.length > 30 ? displayText.substring(0, 30) + '...' : displayText;
+                            }
+
+                            if (user.isOnline) {
+                              return (
+                                <span className="flex items-center gap-1 text-green-600">
+                                  <Circle className="h-2 w-2 fill-green-500" /> Online
+                                </span>
+                              );
+                            }
+
+                            return `Last seen: ${formatLastSeen(user.lastSeen)}`;
+                          })()}
                         </p>
 
                         {user.unreadCount > 0 && (
