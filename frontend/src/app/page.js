@@ -10,6 +10,7 @@ import ChatInterface from '@/components/ChatInterface';
 import { MessageCircle, LogOut, User, ArrowLeft, ChevronRight } from 'lucide-react';
 import ChatLoader from '@/components/ChatLoader';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import { toast } from 'react-toastify';
 
 export default function UserChatPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -19,6 +20,7 @@ export default function UserChatPage() {
   const [isMobile, setIsMobile] = useState(false); // Track if we're on mobile
   const [currentUser, setCurrentUser] = useState(null);
   const [admin, setAdmin] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
   const { socket } = useSocket();
   const [userGroups, setUserGroups] = useState([]);
   const [selectedChat, setSelectedChat] = useState('admin'); // null, 'admin', or groupId
@@ -103,6 +105,14 @@ export default function UserChatPage() {
         setAdmin(userData);
       });
 
+      socket.on('user:PasswordChangedError', (error) => {
+        setErrorMessage(error);
+        toast.error(error)
+        handleLogout()
+      });
+
+
+
       return () => {
         socket.off('user:groupsList');
         socket.off('user:groupUpdated');
@@ -111,6 +121,7 @@ export default function UserChatPage() {
         socket.off('user:profileUpdated');
         socket.off('user:loginSuccess');
         socket.off('admin:profiledata');
+        socket.off('user:PasswordChangedError');
       };
     }
   }, [socket, isLoggedIn]);
