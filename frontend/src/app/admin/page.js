@@ -115,56 +115,7 @@ useEffect(() => {
     };
   }, [socket]);
 
-  // useEffect(() => {
-  //   if (socket && isLoggedIn) {
-  //     // Fetch groups for admin
-  //     socket.emit('groups:fetch', { username: 'admin' });
-
-  //     // Listen for groups list updates
-  //     socket.on('groups:list', (groupsList) => {
-  //       // Filter groups where admin is a member
-  //       const adminGroups = groupsList.filter(group =>
-  //         group.members.includes('admin')
-  //       );
-  //       setGroups(adminGroups);
-  //     });
-
-  //     // Listen for new group creation
-  //     socket.on('group:created', (data) => {
-  //       if (data.group.members.includes('admin')) {
-  //         setGroups(prev => [data.group, ...prev]);
-  //       }
-  //     });
-  //     socket.on('group:updated', (data) => {
-  //       if (data.group.members.includes('admin')) {
-  //         setGroups(prev =>
-  //           prev.map(group =>
-  //             group._id === data.group._id ? data.group : group
-  //           )
-  //         );
-  //       }
-  //     })
-  //     socket.on('admin:profileUpdated', (userData) => {
-  //       setCurrentUser(userData);
-  //     });
-
-  //     socket.on('admin:profiledata', (userData) => {
-  //       setCurrentUser(userData);
-  //     });
-
-  //     return () => {
-  //       socket.off('groups:list');
-  //       socket.off('group:created');
-  //       socket.off('group:updated');
-  //       socket.off('admin:profileUpdated');
-  //       socket.off('admin:profiledata');
-  //     };
-  //   }
-  // }, [socket, isLoggedIn]);
-
-
-  // Updated main socket effect
-
+  
 
 
   useEffect(() => {

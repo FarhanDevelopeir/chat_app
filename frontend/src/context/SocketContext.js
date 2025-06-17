@@ -326,19 +326,50 @@ export function SocketProvider({ children }) {
       });
 
       // Update latest messages for display in chat list
+      // setLatestMessages(prev => {
+      //   const chatId = message.groupId || (message.sender === 'admin' ? 'admin' : message.sender);
+      //   return {
+      //     ...prev,
+      //     [chatId]: {
+      //       content: message.content,
+      //       sender: message.sender,
+      //       createdAt: message.createdAt,
+      //       isFile: !!message.file,
+      //       isAudio: !!message.audio
+      //     }
+      //   };
+      // });
+
       setLatestMessages(prev => {
-        const chatId = message.groupId || (message.sender === 'admin' ? 'admin' : message.sender);
-        return {
-          ...prev,
-          [chatId]: {
-            content: message.content,
-            sender: message.sender,
-            createdAt: message.createdAt,
-            isFile: !!message.file,
-            isAudio: !!message.audio
-          }
-        };
-      });
+  let chatId;
+  
+  if (message.groupId) {
+    // For group messages
+    chatId = message.groupId;
+  } else {
+    // For direct messages
+    if (isAdmin) {
+      // Admin side: chatId should be the user
+      chatId = message.sender === 'admin' ? message.receiver : message.sender;
+    } else {
+      // User side: ALWAYS use 'admin' for any admin conversation
+      chatId = 'admin';
+    }
+  }
+  
+  return {
+    ...prev,
+    [chatId]: {
+      content: message.content,
+      sender: message.sender,
+      createdAt: message.createdAt,
+      isFile: !!message.file,
+      isAudio: !!message.audio
+    }
+  };
+});
+
+
 
       // Show user side unread messages length
       if (message.sender !== username) {
@@ -408,6 +439,33 @@ export function SocketProvider({ children }) {
 
         return removeDuplicateMessages([...prevMessages, message]);
       });
+
+      // And in handleMessageSent:
+setLatestMessages(prev => {
+  let chatId;
+  
+  if (message.groupId) {
+    chatId = message.groupId;
+  } else {
+    if (isAdmin) {
+      chatId = message.receiver;
+    } else {
+      // User side: ALWAYS use 'admin'
+      chatId = 'admin';
+    }
+  }
+  
+  return {
+    ...prev,
+    [chatId]: {
+      content: message.content,
+      sender: message.sender,
+      createdAt: message.createdAt,
+      isFile: !!message.file,
+      isAudio: !!message.audio
+    }
+  };
+});
 
       // Show user side unread messages length
       // Reset unread count when messages are loaded
@@ -864,36 +922,36 @@ export function SocketProvider({ children }) {
 
 
   // 3. Add this NEW useEffect after your existing ones:
-useEffect(() => {
-  if (socket) {
-    // Listen for latest message updates
-    socket.on('user:latestMessageUpdate', (messageUpdates) => {
-      setLatestMessages(prev => ({
-        ...prev,
-        ...messageUpdates
-      }));
-    });
+  useEffect(() => {
+    if (socket) {
+      // Listen for latest message updates
+      socket.on('admin:latestMessageUpdate', (messageUpdates) => {
+        setLatestMessages(prev => ({
+          ...prev,
+          ...messageUpdates
+        }));
+      });
 
-    // Request latest messages when component mounts
-    // if (username) {
-    //   socket.emit('user:getLatestMessages', { username });
-    // }
+      // Request latest messages when component mounts
+
+      socket.emit('admin:getLatestMessages', { username: "admin" });
+
 
       // socket.emit('user:getLatestMessages', { username });
-   
 
 
-    // Listen for initial latest messages
-    socket.on('user:latestMessages', (messages) => {
-      setLatestMessages(messages);
-    });
 
-    return () => {
-      socket.off('user:latestMessageUpdate');
-      socket.off('user:latestMessages');
-    };
-  }
-}, [socket ]);
+      // Listen for initial latest messages
+      socket.on('admin:latestMessages', (messages) => {
+        setLatestMessages(messages);
+      });
+
+      return () => {
+        socket.off('admin:latestMessageUpdate');
+        socket.off('admin:latestMessages');
+      };
+    }
+  }, [socket]);
 
   // Helper function to format message for display
   const formatMessageForDisplay = (message) => {
@@ -983,6 +1041,7 @@ useEffect(() => {
     loadMoreMessages,
 
     latestMessages,
+    setLatestMessages,
     formatMessageForDisplay,
 
   };
