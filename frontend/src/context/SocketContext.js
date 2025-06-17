@@ -39,6 +39,10 @@ export function SocketProvider({ children }) {
   const [currentPage, setCurrentPage] = useState(1);
   const MESSAGES_PER_PAGE = 12;
 
+
+  // 
+  const [latestMessages, setLatestMessages] = useState({});
+
   console.log('notificationPermission', notificationPermission)
 
   // Refs
@@ -240,36 +244,6 @@ export function SocketProvider({ children }) {
 
   // Socket event handlers
   const setupSocketListeners = useCallback((socketInstance, username, isAdmin, selectedUser, selectedGroup, isGroupChat) => {
-    // const handleMessagesHistory = (messageHistory) => {
-    //   const uniqueMessages = removeDuplicateMessages(messageHistory);
-    //   setMessages(uniqueMessages);
-    //   setLoading(false);
-
-    //   // Mark messages as read
-    //   const unreadMessages = uniqueMessages.filter(
-    //     msg => !msg.isRead && (
-    //       (isGroupChat && msg.groupId === selectedGroup) ||
-    //       (!isGroupChat && msg.receiver === username)
-    //     )
-    //   );
-
-    //   if (unreadMessages.length > 0) {
-    //     unreadMessages.forEach(msg => {
-    //       if (isGroupChat) {
-    //         socketInstance.emit('group:markRead', {
-    //           groupId: selectedGroup,
-    //           userId: username
-    //         });
-    //       } else {
-    //         socketInstance.emit('messages:markRead', {
-    //           sender: msg.sender,
-    //           receiver: msg.receiver
-    //         });
-    //       }
-    //     });
-    //   }
-    // };
-
 
     const handleMessagesHistory = (data) => {
       const { messages: messageHistory, hasMore, page } = data;
@@ -317,64 +291,7 @@ export function SocketProvider({ children }) {
     };
 
 
-    // const handleReceiveMessage = (message) => {
-    //   setMessages(prevMessages => {
-    //     const messageExists = prevMessages.some(m =>
-    //       (m._id && m._id === message._id) ||
-    //       (m.content === message.content &&
-    //         m.sender === message.sender &&
-    //         ((isGroupChat && m.groupId === message.groupId) ||
-    //           (!isGroupChat && m.receiver === message.receiver)) &&
-    //         Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 5000)
-    //     );
-
-    //     if (messageExists) return prevMessages;
-
-    //     // Filter based on chat type
-    //     if (isGroupChat) {
-    //       if (message.groupId !== selectedGroup) return prevMessages;
-    //     } else {
-    //       if (isAdmin && message.sender !== selectedUser?.username && message.receiver !== selectedUser?.username) {
-    //         return prevMessages;
-    //       }
-    //     }
-
-    //     const newMessages = [...prevMessages, message];
-    //     return removeDuplicateMessages(newMessages);
-    //   });
-
-    //   // Mark as read and play notification
-    //   if (isGroupChat && message.groupId === selectedGroup) {
-    //     socketInstance.emit('group:markRead', {
-    //       groupId: selectedGroup,
-    //       userId: username
-    //     });
-    //   } else if (!isGroupChat && message.receiver === username) {
-    //     if (!isAdmin || (isAdmin && selectedUser?.username === message.sender)) {
-    //       socketInstance.emit('messages:markRead', {
-    //         sender: message.sender,
-    //         receiver: message.receiver
-    //       });
-    //     }
-    //   }
-
-    //   // Play notification sound
-    //   if (message.sender !== username) {
-    //     showHybridNotification(message, isAdmin);
-    //     try {
-    //       const audio = new Audio('https://res.cloudinary.com/duqzgojyp/video/upload/v1737207753/tpnevoboszj1rnsdsto1.mp3');
-    //       audio.play().catch(err => console.log('Audio play error:', err));
-    //     } catch (error) {
-    //       console.log('Notification sound error:', error);
-    //     }
-    //   }
-    // };
-
-
-
-    // Updated handleReceiveMessage with safety checks
-
-
+    // Updated handleReceiveMessage function
     const handleReceiveMessage = (message) => {
       if (!message) return;
 
@@ -408,6 +325,71 @@ export function SocketProvider({ children }) {
         return removeDuplicateMessages(newMessages);
       });
 
+      // Update latest messages for display in chat list
+      // setLatestMessages(prev => {
+      //   const chatId = message.groupId || (message.sender === 'admin' ? 'admin' : message.sender);
+      //   return {
+      //     ...prev,
+      //     [chatId]: {
+      //       content: message.content,
+      //       sender: message.sender,
+      //       createdAt: message.createdAt,
+      //       isFile: !!message.file,
+      //       isAudio: !!message.audio
+      //     }
+      //   };
+      // });
+
+      setLatestMessages(prev => {
+  let chatId;
+  
+  if (message.groupId) {
+    // For group messages
+    chatId = message.groupId;
+  } else {
+    // For direct messages
+    if (isAdmin) {
+      // Admin side: chatId should be the user
+      chatId = message.sender === 'admin' ? message.receiver : message.sender;
+    } else {
+      // User side: ALWAYS use 'admin' for any admin conversation
+      chatId = 'admin';
+    }
+  }
+  
+  return {
+    ...prev,
+    [chatId]: {
+      content: message.content,
+      sender: message.sender,
+      createdAt: message.createdAt,
+      isFile: !!message.file,
+      isAudio: !!message.audio
+    }
+  };
+});
+
+
+
+      // Show user side unread messages length
+      if (message.sender !== username) {
+        // For admin messages
+        if (message.sender === 'admin') {
+          socketInstance.emit('user:updateUnreadCount', {
+            username,
+            chatId: 'admin',
+            increment: true
+          });
+        }
+        // For group messages
+        else if (message.groupId) {
+          socketInstance.emit('user:updateUnreadCount', {
+            username,
+            chatId: message.groupId,
+            increment: true
+          });
+        }
+      }
 
       // Mark as read and play notification
       if (isGroupChat && message.groupId === selectedGroup) {
@@ -436,10 +418,6 @@ export function SocketProvider({ children }) {
       }
     };
 
-
-
-
-
     const handleMessageSent = (message) => {
       setMessages(prevMessages => {
         const index = prevMessages.findIndex(m =>
@@ -461,6 +439,50 @@ export function SocketProvider({ children }) {
 
         return removeDuplicateMessages([...prevMessages, message]);
       });
+
+      // And in handleMessageSent:
+setLatestMessages(prev => {
+  let chatId;
+  
+  if (message.groupId) {
+    chatId = message.groupId;
+  } else {
+    if (isAdmin) {
+      chatId = message.receiver;
+    } else {
+      // User side: ALWAYS use 'admin'
+      chatId = 'admin';
+    }
+  }
+  
+  return {
+    ...prev,
+    [chatId]: {
+      content: message.content,
+      sender: message.sender,
+      createdAt: message.createdAt,
+      isFile: !!message.file,
+      isAudio: !!message.audio
+    }
+  };
+});
+
+      // Show user side unread messages length
+      // Reset unread count when messages are loaded
+      if (isGroupChat) {
+        socketInstance.emit('user:updateUnreadCount', {
+          username,
+          chatId: selectedGroup,
+          reset: true
+        });
+      } else {
+        socketInstance.emit('user:updateUnreadCount', {
+          username,
+          chatId: 'admin',
+          reset: true
+        });
+      }
+
     };
 
     const handleReadStatusUpdate = (updatedMessages) => {
@@ -540,7 +562,6 @@ export function SocketProvider({ children }) {
         });
       });
     };
-
 
     const handleEmojiReactionUpdate = (data) => {
       const { messageId, reactions } = data;
@@ -898,6 +919,61 @@ export function SocketProvider({ children }) {
     };
   }, [requestNotificationPermission]);
 
+
+
+  // 3. Add this NEW useEffect after your existing ones:
+  useEffect(() => {
+    if (socket) {
+      // Listen for latest message updates
+      socket.on('admin:latestMessageUpdate', (messageUpdates) => {
+        setLatestMessages(prev => ({
+          ...prev,
+          ...messageUpdates
+        }));
+      });
+
+      // Request latest messages when component mounts
+
+      socket.emit('admin:getLatestMessages', { username: "admin" });
+
+
+      // socket.emit('user:getLatestMessages', { username });
+
+
+
+      // Listen for initial latest messages
+      socket.on('admin:latestMessages', (messages) => {
+        setLatestMessages(messages);
+      });
+
+      return () => {
+        socket.off('admin:latestMessageUpdate');
+        socket.off('admin:latestMessages');
+      };
+    }
+  }, [socket]);
+
+  // Helper function to format message for display
+  const formatMessageForDisplay = (message) => {
+    if (!message) return '';
+
+    if (message.isFile) {
+      return '📎 File';
+    }
+
+    if (message.isAudio) {
+      return '🎵 Audio';
+    }
+
+    // Truncate long messages
+    const maxLength = 35;
+    if (message.content.length > maxLength) {
+      return message.content.substring(0, maxLength) + '...';
+    }
+
+    return message.content;
+  };
+
   const value = {
     // Socket
     socket,
@@ -963,6 +1039,10 @@ export function SocketProvider({ children }) {
     loadingMoreMessages,
     currentPage,
     loadMoreMessages,
+
+    latestMessages,
+    setLatestMessages,
+    formatMessageForDisplay,
 
   };
 

@@ -33,6 +33,7 @@ import {
   SheetClose
 } from "@/components/ui/sheet";
 import ProfileAvatar from './ProfileAvatar';
+import { useSocket } from '@/context/SocketContext';
 
 export default function UsersList({
   socket,
@@ -59,6 +60,7 @@ export default function UsersList({
   const [isMobile, setIsMobile] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState({}); // Store unread counts for each user
   const [matchingIPs, setMatchingIPs] = useState([]);
+  const { latestMessages, setLatestMessages, formatMessageForDisplay } = useSocket();
 
   // Check if viewing on mobile
   useEffect(() => {
@@ -77,6 +79,11 @@ export default function UsersList({
       window.removeEventListener('resize', checkIfMobile);
     };
   }, []);
+
+
+
+
+
 
   // Request unread counts when component mounts or when socket changes
   useEffect(() => {
@@ -97,13 +104,39 @@ export default function UsersList({
         }));
       });
 
+
+      // Listen for latest message updates - FIXED event names
+      socket.on('admin:latestMessages', (messages) => {
+        console.log('Received latest messages:', messages);
+        console.log('Admin message structure:', messages['admin']); // Debug line
+
+        setLatestMessages(messages);
+      });
+
+
+
+      // Listen for individual latest message updates
+      socket.on('admin:latestMessageUpdate', (data) => {
+        console.log('Received latest message update:', data);
+        console.log('Admin message update structure:', data['admin']);
+        setLatestMessages(prev => ({
+          ...prev,
+          ...data
+        }));
+      });
+
+
+      socket.emit('user:getLatestMessages', { username: 'admin' });
+
       // Clean up listeners
       return () => {
         socket.off('admin:unreadCounts');
         socket.off('admin:unreadCountUpdate');
+        socket.off('admin:latestMessages');
+        socket.off('admin:latestMessageUpdate');
       };
     }
-  }, [socket]);
+  }, [latestMessages]);
 
   // Request updated unread counts when a user is selected (to mark as read)
   useEffect(() => {
@@ -560,19 +593,49 @@ export default function UsersList({
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between mt-1">
-                        <p className={`text-xs truncate pr-2 ${user.unreadCount > 0 ? 'text-slate-700 font-medium' : 'text-slate-500'
-                          }`}>
-                          {user.lastMessage ? user.lastMessage.substring(0, 30) + (user.lastMessage.length > 30 ? '...' : '') :
-                            user.isOnline ? (
-                              <span className="flex items-center gap-1 text-green-600">
-                                <Circle className="h-2 w-2 fill-green-500" /> Online
-                              </span>
-                            ) : (
-                              `Last seen: ${formatLastSeen(user.lastSeen)}`
-                            )
-                          }
+
+
+                      {/* // Replace the existing message display section in UsersList with this: */}
+                      {/* <div className="flex items-center justify-between mt-1">
+
+
+
+                        <p className={`text-xs truncate pr-2 ${user.unreadCount > 0 ? 'text-slate-700 font-medium' : 'text-slate-500'}`}>
+                          {(() => {
+                            const latestMsg = latestMessages['admin'] || latestMessages[user.username];
+
+                            if (latestMsg) {
+                              const prefix = latestMsg.sender === 'admin' ? 'You: ' : '';
+                              const content = latestMsg.content || '';
+
+                              let messageText = '';
+                              if (content.includes("Document:")) {
+                                messageText = '📎 File';
+                              } else if (content.includes("Image:")) {
+                                messageText = '🖼️ Image';
+                              } else if (content.includes("Voice:")) {
+                                messageText = '🎵 Audio';
+                              } else {
+                                messageText = content;
+                              }
+
+                              const displayText = prefix + messageText;
+                              return displayText.length > 20 ? displayText.substring(0, 20) + '...' : displayText;
+                            }
+
+                            if (user.isOnline) {
+                              return (
+                                <span className="flex items-center gap-1 text-green-600">
+                                  <Circle className="h-2 w-2 fill-green-500" /> Online
+                                </span>
+                              );
+                            }
+
+                            return `Last seen: ${formatLastSeen(user.lastSeen)}`;
+                          })()}
                         </p>
+
+
 
                         {user.unreadCount > 0 && (
                           <Badge
@@ -582,7 +645,60 @@ export default function UsersList({
                             {user.unreadCount > 99 ? '99+' : user.unreadCount}
                           </Badge>
                         )}
-                      </div>
+                      </div> */}
+
+                      <p
+                        title={(() => {
+                          const latestMsg = latestMessages['admin'] || latestMessages[user.username];
+                          if (latestMsg) {
+                            const prefix = latestMsg.sender === 'admin' ? 'You: ' : '';
+                            const content = latestMsg.content || '';
+
+                            if (content.includes("Document:")) return prefix + '📎 File';
+                            if (content.includes("Image:")) return prefix + '🖼️ Image';
+                            if (content.includes("Voice:")) return prefix + '🎵 Audio';
+                            return prefix + content;
+                          }
+                          return user.isOnline ? 'Online' : `Last seen: ${formatLastSeen(user.lastSeen)}`;
+                        })()}
+                        className={`text-xs truncate pr-2 max-w-[150px] ${user.unreadCount > 0 ? 'text-slate-700 font-medium' : 'text-slate-500'
+                          }`}
+                      >
+                        {(() => {
+                          const latestMsg = latestMessages['admin'] || latestMessages[user.username];
+                          if (latestMsg) {
+                            const prefix = latestMsg.sender === 'admin' ? 'You: ' : '';
+                            const content = latestMsg.content || '';
+
+                            let messageText = '';
+                            if (content.includes("Document:")) {
+                              messageText = '📎 File';
+                            } else if (content.includes("Image:")) {
+                              messageText = '🖼️ Image';
+                            } else if (content.includes("Voice:")) {
+                              messageText = '🎵 Audio';
+                            } else {
+                              messageText = content;
+                            }
+
+                            const displayText = prefix + messageText;
+                            return displayText.length > 20 ? displayText.substring(0, 20) + '...' : displayText;
+                          }
+
+                          if (user.isOnline) {
+                            return (
+                              <span className="flex items-center gap-1 text-green-600">
+                                <Circle className="h-2 w-2 fill-green-500" /> Online
+                              </span>
+                            );
+                          }
+
+                          return `Last seen: ${formatLastSeen(user.lastSeen)}`;
+                        })()}
+                      </p>
+
+
+
                     </div>
                   </div>
                 </div>
