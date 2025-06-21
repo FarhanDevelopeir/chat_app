@@ -248,7 +248,7 @@ export default function FileMessage({ file }) {
       );
     } else {
       return (
-        <div className="flex items-center p-2 bg-white/80 rounded-md mb-2 z-[2000]">
+        <div className="flex items-center p-2 bg-white/80 rounded-md mb-2 ">
           <FileText className="h-6 w-6 text-blue-500 mr-2" />
           <div className="text-sm">
             <p className="font-medium truncate max-w-[150px]">{file.name}</p>
@@ -261,7 +261,7 @@ export default function FileMessage({ file }) {
 
   return (
     <>
-      <div className="flex flex-col z-[2000]">
+      <div className="flex flex-col ">
         {renderFilePreview()}
         <div className="flex items-center justify-end">
           <button
@@ -278,7 +278,7 @@ export default function FileMessage({ file }) {
       {/* Image Preview Modal */}
       {file.type === 'image' && (
         <Dialog open={showPreview} onOpenChange={handlePreviewClose}>
-          <DialogContent className="w-full h-full flex items-center justify-center z-[2000] relative">
+          <DialogContent className="w-full h-full flex items-center justify-center  relative">
             {/* Header Controls */}
             <div className="absolute top-4 md:left-4 md:right-4 z-[2000] md:flex md:items-center md:justify-between">
               <div className="flex items-center space-x-2 bg-black/50 rounded-lg px-3 py-2 mb-2 md:mb-0">

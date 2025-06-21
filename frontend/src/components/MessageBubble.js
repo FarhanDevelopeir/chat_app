@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import FileMessage from "./FileMessage";
 import AudioMessage from "./AudioMessage";
 import { Check, CheckCheck, ChevronDown, Reply, Trash2 } from "lucide-react";
+import { Pin, PinOff } from "lucide-react";
+import { SearchHighlight } from "./SearchBar";
+
 
 
 export default function MessageBubble({
@@ -21,12 +24,19 @@ export default function MessageBubble({
   showDropdown,
   setShowDropdown,
   isMobile,
-  setIsMobile
+  setIsMobile,
+
+  handlePinMessage, // New prop
+  handleUnpinMessage, // New prop
+
+  searchQuery,
+  isHighlighted,
+
 }) {
   const isFileMessage = message.file !== undefined;
   const isVoiceMessage = message.audio !== undefined;
   const [showMobileButtons, setShowMobileButtons] = useState(null);
-  
+
 
   const containerRef = useRef(null);
 
@@ -133,7 +143,8 @@ export default function MessageBubble({
           ) : isFileMessage ? (
             <FileMessage file={message.file} />
           ) : (
-            <p className="mb-1 text-sm md:text-base">{message.content}</p>
+            // <p className="mb-1 text-sm md:text-base">{message.content}</p>
+             <SearchHighlight text={message.content} searchQuery={searchQuery} />
           )}
         </div>
 
@@ -230,6 +241,36 @@ export default function MessageBubble({
                     <Reply className="h-4 w-4" />
                     Reply
                   </button>
+                  {/* Add this inside the existing dropdown menu, after the Reply button */}
+                  {!message.isPinned ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePinMessage(message._id);
+                        setShowDropdown(null);
+                        setShowMobileButtons(null);
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <Pin className="h-4 w-4" />
+                      Pin
+                    </button>
+                  ) : (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleUnpinMessage(message._id);
+                        setShowDropdown(null);
+                        setShowMobileButtons(null);
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-orange-600 hover:bg-orange-50 flex items-center gap-2"
+                    >
+                      <PinOff className="h-4 w-4" />
+                      Unpin
+                    </button>
+                  )}
+
+
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

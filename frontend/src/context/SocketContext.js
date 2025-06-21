@@ -325,49 +325,35 @@ export function SocketProvider({ children }) {
         return removeDuplicateMessages(newMessages);
       });
 
-      // Update latest messages for display in chat list
-      // setLatestMessages(prev => {
-      //   const chatId = message.groupId || (message.sender === 'admin' ? 'admin' : message.sender);
-      //   return {
-      //     ...prev,
-      //     [chatId]: {
-      //       content: message.content,
-      //       sender: message.sender,
-      //       createdAt: message.createdAt,
-      //       isFile: !!message.file,
-      //       isAudio: !!message.audio
-      //     }
-      //   };
-      // });
-
+     
       setLatestMessages(prev => {
-  let chatId;
-  
-  if (message.groupId) {
-    // For group messages
-    chatId = message.groupId;
-  } else {
-    // For direct messages
-    if (isAdmin) {
-      // Admin side: chatId should be the user
-      chatId = message.sender === 'admin' ? message.receiver : message.sender;
-    } else {
-      // User side: ALWAYS use 'admin' for any admin conversation
-      chatId = 'admin';
-    }
-  }
-  
-  return {
-    ...prev,
-    [chatId]: {
-      content: message.content,
-      sender: message.sender,
-      createdAt: message.createdAt,
-      isFile: !!message.file,
-      isAudio: !!message.audio
-    }
-  };
-});
+        let chatId;
+
+        if (message.groupId) {
+          // For group messages
+          chatId = message.groupId;
+        } else {
+          // For direct messages
+          if (isAdmin) {
+            // Admin side: chatId should be the user
+            chatId = message.sender === 'admin' ? message.receiver : message.sender;
+          } else {
+            // User side: ALWAYS use 'admin' for any admin conversation
+            chatId = 'admin';
+          }
+        }
+
+        return {
+          ...prev,
+          [chatId]: {
+            content: message.content,
+            sender: message.sender,
+            createdAt: message.createdAt,
+            isFile: !!message.file,
+            isAudio: !!message.audio
+          }
+        };
+      });
 
 
 
@@ -441,31 +427,31 @@ export function SocketProvider({ children }) {
       });
 
       // And in handleMessageSent:
-setLatestMessages(prev => {
-  let chatId;
-  
-  if (message.groupId) {
-    chatId = message.groupId;
-  } else {
-    if (isAdmin) {
-      chatId = message.receiver;
-    } else {
-      // User side: ALWAYS use 'admin'
-      chatId = 'admin';
-    }
-  }
-  
-  return {
-    ...prev,
-    [chatId]: {
-      content: message.content,
-      sender: message.sender,
-      createdAt: message.createdAt,
-      isFile: !!message.file,
-      isAudio: !!message.audio
-    }
-  };
-});
+      setLatestMessages(prev => {
+        let chatId;
+
+        if (message.groupId) {
+          chatId = message.groupId;
+        } else {
+          if (isAdmin) {
+            chatId = message.receiver;
+          } else {
+            // User side: ALWAYS use 'admin'
+            chatId = 'admin';
+          }
+        }
+
+        return {
+          ...prev,
+          [chatId]: {
+            content: message.content,
+            sender: message.sender,
+            createdAt: message.createdAt,
+            isFile: !!message.file,
+            isAudio: !!message.audio
+          }
+        };
+      });
 
       // Show user side unread messages length
       // Reset unread count when messages are loaded
@@ -504,30 +490,7 @@ setLatestMessages(prev => {
       });
     };
 
-    // const handleGroupReadStatusUpdate = (data) => {
-    //   const { groupId, readBy, updatedMessages } = data;
-    //   setMessages(prevMessages => {
-    //     return prevMessages.map(msg => {
-    //       const updatedMsg = updatedMessages.find(updated =>
-    //         updated._id === msg._id ||
-    //         (updated.content === msg.content &&
-    //           updated.sender === msg.sender &&
-    //           updated.groupId === msg.groupId &&
-    //           Math.abs(new Date(updated.createdAt) - new Date(msg.createdAt)) < 5000)
-    //       );
-
-    //       if (updatedMsg) {
-    //         return { ...msg, isRead: true };
-    //       }
-    //       return msg;
-    //     });
-    //   });
-    // };
-
-    // Updated handleGroupReadStatusUpdate function in SocketContext
-
-
-    // Updated handleGroupReadStatusUpdate with safety checks
+    
     const handleGroupReadStatusUpdate = (data) => {
       const { groupId, readBy, updatedMessages } = data;
 
