@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import {
   Search,
@@ -30,7 +30,8 @@ import {
   Sheet,
   SheetContent,
   SheetTrigger,
-  SheetClose
+  SheetClose,
+  SheetTitle
 } from "@/components/ui/sheet";
 import ProfileAvatar from './ProfileAvatar';
 import { useSocket } from '@/context/SocketContext';
@@ -52,6 +53,8 @@ export default function UsersList({
   newPassword,
   setNewUsername,
   setNewPassword,
+  handleLogout,
+  userType
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all'); // 'all' or 'unread'
@@ -61,6 +64,12 @@ export default function UsersList({
   const [unreadCounts, setUnreadCounts] = useState({}); // Store unread counts for each user
   const [matchingIPs, setMatchingIPs] = useState([]);
   const { latestMessages, setLatestMessages, formatMessageForDisplay } = useSocket();
+  const currentUserRef = useRef(currentUser);
+
+
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
 
   // Check if viewing on mobile
   useEffect(() => {
@@ -80,19 +89,68 @@ export default function UsersList({
     };
   }, []);
 
+  // useEffect(() => {
+  //   if (socket) {
+  //     // Request unread counts for all users
+  //     socket.emit('admin:getUnreadCounts');
+
+  //     // Listen for unread counts updates
+  //     socket.on('admin:unreadCounts', (counts) => {
+  //       setUnreadCounts(counts);
+  //     });
+
+  //     // Listen for real-time unread count updates
+  //     socket.on('admin:unreadCountUpdate', ({ username, count }) => {
+  //       setUnreadCounts(prev => ({
+  //         ...prev,
+  //         [username]: count
+  //       }));
+  //     });
+
+
+  //     // Listen for latest message updates - FIXED event names
+  //     socket.on('admin:latestMessages', (messages) => {
+  //       console.log('Received latest messages:', messages);
+  //       console.log('Admin message structure:', messages['admin']); // Debug line
+
+  //       setLatestMessages(messages);
+  //     });
 
 
 
+  //     // Listen for individual latest message updates
+  //     socket.on('admin:latestMessageUpdate', (data) => {
+  //       console.log('Received latest message update:', data);
+  //       console.log('Admin message update structure:', data['admin']);
+  //       setLatestMessages(prev => ({
+  //         ...prev,
+  //         ...data
+  //       }));
+  //     });
 
 
-  // Request unread counts when component mounts or when socket changes
+  //     socket.emit('user:getLatestMessages', { username: 'admin' });
+
+  //     // Clean up listeners
+  //     return () => {
+  //       socket.off('admin:unreadCounts');
+  //       socket.off('admin:unreadCountUpdate');
+  //       socket.off('admin:latestMessages');
+  //       socket.off('admin:latestMessageUpdate');
+  //     };
+  //   }
+  // }, [latestMessages]);
+
   useEffect(() => {
     if (socket) {
-      // Request unread counts for all users
-      socket.emit('admin:getUnreadCounts');
 
       // Listen for unread counts updates
       socket.on('admin:unreadCounts', (counts) => {
+        setUnreadCounts(counts);
+      });
+
+      socket.on('subadmin:unreadCounts', (counts) => {
+        console.log('subadmin:unreadCounts', counts)
         setUnreadCounts(counts);
       });
 
@@ -104,49 +162,86 @@ export default function UsersList({
         }));
       });
 
+      socket.on('subadmin:unreadCountUpdate', ({ username, count }) => {
+        setUnreadCounts(prev => ({
+          ...prev,
+          [username]: count
+        }));
+      });
 
       // Listen for latest message updates - FIXED event names
       socket.on('admin:latestMessages', (messages) => {
-        console.log('Received latest messages:', messages);
-        console.log('Admin message structure:', messages['admin']); // Debug line
-
         setLatestMessages(messages);
       });
 
-
+      socket.on('subadmin:latestMessages', (messages) => {
+        setLatestMessages(messages);
+      });
 
       // Listen for individual latest message updates
       socket.on('admin:latestMessageUpdate', (data) => {
-        console.log('Received latest message update:', data);
-        console.log('Admin message update structure:', data['admin']);
         setLatestMessages(prev => ({
           ...prev,
           ...data
         }));
       });
 
+      socket.on('subadmin:latestMessageUpdate', (data) => {
+        setLatestMessages(prev => ({
+          ...prev,
+          ...data
+        }));
+      });
 
-      socket.emit('user:getLatestMessages', { username: 'admin' });
+      // if (userType === 'admin') {
+      //   socket.emit('admin:getUnreadCounts');
+      //   socket.emit('user:getLatestMessages', { username: 'admin' });
+      // }
+      // else if (userType === 'subadmin') {
+      //   socket.emit('subadmin:getUnreadCounts', { username:  currentUserRef.current?.username  });
+      //   socket.emit('user:getLatestMessages', { username:  currentUserRef.current?.username  });
+      // }
 
       // Clean up listeners
       return () => {
         socket.off('admin:unreadCounts');
+        socket.off('subadmin:unreadCounts');
         socket.off('admin:unreadCountUpdate');
+        socket.off('subadmin:unreadCountUpdate');
         socket.off('admin:latestMessages');
+        socket.off('subadmin:latestMessages');
         socket.off('admin:latestMessageUpdate');
+        socket.off('subadmin:latestMessageUpdate');
       };
     }
   }, [latestMessages]);
 
-  // Request updated unread counts when a user is selected (to mark as read)
+
   useEffect(() => {
-    if (selectedUser && socket) {
-      // Small delay to allow backend to process markAsRead
-      setTimeout(() => {
+    if (socket) {
+      if (userType === 'admin') {
         socket.emit('admin:getUnreadCounts');
-      }, 100);
+        socket.emit('user:getLatestMessages', { username: 'admin' });
+      } else if (userType === 'subadmin') {
+        socket.emit('subadmin:getUnreadCounts', { username: currentUserRef.current?.username });
+        socket.emit('user:getLatestMessages', { username: currentUserRef.current?.username });
+      }
     }
-  }, [selectedUser, socket]);
+
+  }, [socket, userType]);
+
+
+  // useEffect(() => {
+  //   if (selectedUser && socket) {
+  //     setTimeout(() => {
+  //       if (userType === 'admin') {
+  //         socket.emit('admin:getUnreadCounts');
+  //       } else if (userType === 'subadmin') {
+  //         socket.emit('subadmin:getUnreadCounts', { username: currentUser.username });
+  //       }
+  //     }, 100);
+  //   }
+  // }, [socket]);
 
   // Sort users by most recent message and apply filters
   useEffect(() => {
@@ -246,17 +341,11 @@ export default function UsersList({
     return lastSeen.toLocaleDateString();
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('adminLoggedIn');
-    setIsLoggedIn(false);
-    socket.emit('admin:logout');
-  };
-
   const handleSelectUser = (user) => {
     onSelectUser(user);
     // Mark messages as read when admin selects a user
     if (socket) {
-      socket.emit('messages:markRead', { sender: user?.username, receiver: 'admin' });
+      socket.emit('messages:markRead', { sender: user?.username, receiver: userType === 'subadmin' ? currentUser?.username : 'admin' });
     }
   };
 
@@ -279,7 +368,7 @@ export default function UsersList({
       <SheetContent side="left" className="w-[240px] p-0">
         <div className="p-4 bg-[#00a884] text-white">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="font-medium">Admin Panel</h3>
+            <SheetTitle className="font-medium">Admin Panel</SheetTitle>
             <SheetClose asChild>
               <Button variant="ghost" size="icon" className="text-white hover:bg-[#009874]">
                 <X className="h-5 w-5" />
@@ -326,7 +415,7 @@ export default function UsersList({
                 )}
               </Button>
             </SheetClose>
-            <SheetClose asChild>
+            {userType === 'admin' && <SheetClose asChild>
               <Button
                 variant="ghost"
                 className="justify-start"
@@ -334,7 +423,7 @@ export default function UsersList({
               >
                 <UserPlus className="h-4 w-4 mr-2" /> Add New User
               </Button>
-            </SheetClose>
+            </SheetClose>}
             <div className="border-t border-gray-200 my-2"></div>
             <Button
               variant="ghost"
@@ -481,7 +570,7 @@ export default function UsersList({
         </div>
 
         {/* Filter tabs - Hidden on mobile, handled by side menu instead */}
-        <div className="hidden md:flex items-center justify-between mt-2">
+        <div className="hidden md:flex items-center justify-between mt-2 overflow-x-auto">
           <div className="flex space-x-2">
             <Button
               variant={filter === 'all' ? "default" : "outline"}
@@ -519,20 +608,20 @@ export default function UsersList({
             </Button>
           </div>
 
-          <Button
+          {<Button
             variant="default"
             size="sm"
             className="bg-[#00a884] hover:bg-[#009874]"
             onClick={() => setDialogOpen(true)}
           >
             <UserPlus className="h-4 w-4 mr-1" /> Add User
-          </Button>
+          </Button>}
         </div>
 
         {/* Mobile filters - simple text displays */}
         <div className="flex justify-between items-center mt-2 md:hidden">
           <div className="text-sm font-medium text-slate-600">
-            {filter === 'all' ? 'All Users' : filter === 'ips' ?  'User IP Addresses' : 'Unread Messages'}
+            {filter === 'all' ? 'All Users' : filter === 'ips' ? 'User IP Addresses' : 'Unread Messages'}
           </div>
           {filter === 'unread' && totalUnreadMessages > 0 && (
             <Badge variant="default" className="bg-[#00a884]">
@@ -587,66 +676,26 @@ export default function UsersList({
                           }`}>
                           {user.username}
                         </p>
-                        <span className="text-xs text-slate-500 whitespace-nowrap">
-                          {user.lastMessageTime ? new Date(user.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) :
-                            (user.isOnline ? 'Now' : formatLastSeen(user.lastSeen))}
-                        </span>
+
+                        <div className="relative flex flex-col items-end">
+                          {user.unreadCount > 0 && (
+                            <Badge
+                              variant="default"
+                              className="absolute -top-2 right-0 bg-green-600 hover:bg-green-600 text-white min-w-[20px] h-5 px-2 text-xs font-semibold rounded-full flex items-center justify-center"
+                            >
+                              {user.unreadCount > 99 ? '99+' : user.unreadCount}
+                            </Badge>
+                          )}
+
+                          <span className="text-xs text-slate-500 absolute top-4 right-0 whitespace-nowrap">
+                            {user.lastMessageTime
+                              ? new Date(user.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                              : user.isOnline
+                                ? 'Now'
+                                : formatLastSeen(user.lastSeen)}
+                          </span>
+                        </div>
                       </div>
-
-
-
-                      {/* // Replace the existing message display section in UsersList with this: */}
-                      {/* <div className="flex items-center justify-between mt-1">
-
-
-
-                        <p className={`text-xs truncate pr-2 ${user.unreadCount > 0 ? 'text-slate-700 font-medium' : 'text-slate-500'}`}>
-                          {(() => {
-                            const latestMsg = latestMessages['admin'] || latestMessages[user.username];
-
-                            if (latestMsg) {
-                              const prefix = latestMsg.sender === 'admin' ? 'You: ' : '';
-                              const content = latestMsg.content || '';
-
-                              let messageText = '';
-                              if (content.includes("Document:")) {
-                                messageText = '📎 File';
-                              } else if (content.includes("Image:")) {
-                                messageText = '🖼️ Image';
-                              } else if (content.includes("Voice:")) {
-                                messageText = '🎵 Audio';
-                              } else {
-                                messageText = content;
-                              }
-
-                              const displayText = prefix + messageText;
-                              return displayText.length > 20 ? displayText.substring(0, 20) + '...' : displayText;
-                            }
-
-                            if (user.isOnline) {
-                              return (
-                                <span className="flex items-center gap-1 text-green-600">
-                                  <Circle className="h-2 w-2 fill-green-500" /> Online
-                                </span>
-                              );
-                            }
-
-                            return `Last seen: ${formatLastSeen(user.lastSeen)}`;
-                          })()}
-                        </p>
-
-
-
-                        {user.unreadCount > 0 && (
-                          <Badge
-                            variant="default"
-                            className="bg-green-600 hover:bg-green-600 text-white min-w-[20px] h-5 px-2 text-xs font-semibold rounded-full flex items-center justify-center"
-                          >
-                            {user.unreadCount > 99 ? '99+' : user.unreadCount}
-                          </Badge>
-                        )}
-                      </div> */}
-
                       <p
                         title={(() => {
                           const latestMsg = latestMessages['admin'] || latestMessages[user.username];
@@ -692,12 +741,9 @@ export default function UsersList({
                               </span>
                             );
                           }
-
                           return `Last seen: ${formatLastSeen(user.lastSeen)}`;
                         })()}
                       </p>
-
-
 
                     </div>
                   </div>
@@ -709,7 +755,7 @@ export default function UsersList({
       </div>
 
       {/* Add User Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {userType === 'admin' && <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <CreateUser
           socket={socket}
           dialogOpen={dialogOpen}
@@ -719,7 +765,7 @@ export default function UsersList({
           newPassword={newPassword}
           setNewPassword={setNewPassword}
         />
-      </Dialog>
+      </Dialog>}
     </div>
   );
 }

@@ -11,13 +11,18 @@ import DialogContainer from './DialogContainer';
 
 export default function ChatInterface({
   isAdmin = false,
+  isSubAdmin = false,
   selectedUser = null,
   selectedGroup = null,
   admin = null,
+  subAdmin = null,
   users = null,
   groups = [],
   onBackClick = null,
   chatType = 'user',
+  userType,
+  currentUser
+
 }) {
   const {
     socket,
@@ -69,16 +74,19 @@ export default function ChatInterface({
   const messageInputRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
 
-  const username = isAdmin ? 'admin' : localStorage.getItem('chat_username');
-  const receiver = chatType === 'group' ? selectedGroup : (isAdmin ? selectedUser?.username : 'admin');
+  const username = isAdmin ? 'admin' : isSubAdmin ? currentUser?.username : localStorage.getItem('chat_username');
+  const receiver = chatType === 'group' ? selectedGroup : chatType === 'subadmin' ? selectedUser : (isAdmin || isSubAdmin ? selectedUser?.username : 'admin');
+
   const isGroupChat = chatType === 'group';
+
+  console.log('selectedUser in chatInterface', selectedUser)
 
   // Focus input when loading completes
   useEffect(() => {
     if (!loading) {
       messageInputRef.current?.focus();
     }
-  }, [loading, isAdmin, selectedUser, selectedGroup]);
+  }, [loading, isAdmin, isSubAdmin, selectedUser, selectedGroup]);
 
   // Setup socket listeners
   useEffect(() => {
@@ -88,13 +96,15 @@ export default function ChatInterface({
       socket,
       username,
       isAdmin,
+      isSubAdmin,
       selectedUser,
       selectedGroup,
-      isGroupChat
+      isGroupChat,
+      chatType
     );
 
     return cleanup;
-  }, [socket, username, isAdmin, selectedUser, selectedGroup, isGroupChat, setupSocketListeners]);
+  }, [socket, username, isAdmin, isSubAdmin, selectedUser, selectedGroup, isGroupChat, chatType, setupSocketListeners]);
 
   // Handle chat selection changes
   useEffect(() => {
@@ -105,18 +115,25 @@ export default function ChatInterface({
         socket.emit('group:join', selectedGroup);
       } else if (isAdmin && selectedUser?.username) {
         socket.emit('admin:selectUser', selectedUser?.username);
+      } else if (isSubAdmin && selectedUser?.username) {
+        socket.emit('subadmin:selectUser', { sender: currentUser?.username, receiver: selectedUser?.username });
+      } else if (chatType === 'subadmin' && selectedUser) {
+        socket.emit('user:subadminChat', {
+          username: localStorage.getItem('chat_username'),
+          subAdminUsername: selectedUser
+        });
       } else {
         socket.emit('user:adminChat', username);
       }
     }
-  }, [isAdmin, selectedUser, selectedGroup, socket, connected, isGroupChat, clearMessages]);
+  }, [isAdmin, isSubAdmin, selectedUser, chatType, selectedGroup, socket, connected, isGroupChat, clearMessages]);
 
 
   // Updated handleLoadMore function to be added to ChatInterface
   const handleLoadMore = useCallback(() => {
     if (!socket || !connected) return;
 
-    const username = isAdmin ? 'admin' : localStorage.getItem('chat_username');
+    const username = isAdmin ? 'admin' : isSubAdmin ? currentUser?.username : localStorage.getItem('chat_username');
 
     if (isGroupChat && selectedGroup) {
       // For group chats
@@ -133,6 +150,23 @@ export default function ChatInterface({
         sender: selectedUser.username,
         receiver: 'admin'
       });
+    } else if (isSubAdmin && selectedUser?.username) {
+      // For admin selecting a user
+      socket.emit('messages:loadMore', {
+        page: currentPage + 1,
+        limit: 12,
+        sender: selectedUser.username,
+        receiver: currentUser?.username
+      });
+    } else if (chatType === 'subadmin' && selectedUser) {
+      // For regular user chatting with subAdmin - load more
+      socket.emit('messages:loadMore', {
+        page: currentPage + 1,
+        limit: 12,
+        sender: username,
+        receiver: selectedUser,
+        chatType: 'subadmin'
+      });
     } else {
       // For regular user chatting with admin
       socket.emit('messages:loadMore', {
@@ -142,7 +176,7 @@ export default function ChatInterface({
         receiver: 'admin'
       });
     }
-  }, [socket, connected, isAdmin, selectedUser, selectedGroup, isGroupChat, currentPage]);
+  }, [socket, connected, isAdmin, isSubAdmin, chatType, selectedUser, selectedGroup, isGroupChat, currentPage]);
 
   // Handle reply
   const handleReplyMessage = (replyToMessage) => {
@@ -262,7 +296,7 @@ export default function ChatInterface({
   };
 
   // Show empty state if admin with no selection
-  if (isAdmin && !selectedUser && !selectedGroup) {
+  if ((isAdmin || isSubAdmin) && !selectedUser && !selectedGroup) {
     return <EmptyState />;
   }
 
@@ -270,9 +304,11 @@ export default function ChatInterface({
     <div className="flex flex-col h-full">
       <ChatHeader
         isAdmin={isAdmin}
+        isSubAdmin={isSubAdmin}
         selectedUser={selectedUser}
         selectedGroup={selectedGroup}
         admin={admin}
+        subAdmin={subAdmin}
         groups={groups}
         onBackClick={onBackClick}
         chatType={chatType}

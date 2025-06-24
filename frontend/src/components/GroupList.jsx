@@ -20,7 +20,8 @@ import {
   Sheet,
   SheetContent,
   SheetTrigger,
-  SheetClose
+  SheetClose,
+  SheetTitle
 } from "@/components/ui/sheet";
 import { useSocket } from '@/context/SocketContext';
 
@@ -190,7 +191,7 @@ export default function GroupsList({
       <SheetContent side="left" className="w-[240px] p-0">
         <div className="p-4 bg-[#00a884] text-white">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="font-medium">Groups Panel</h3>
+            <SheetTitle className="font-medium text-white">Groups Panel</SheetTitle>
             <SheetClose asChild>
               <Button variant="ghost" size="icon" className="text-white hover:bg-[#009874]">
                 <X className="h-5 w-5" />
@@ -200,7 +201,7 @@ export default function GroupsList({
         </div>
         <div className="px-4 py-2">
           <div className="flex flex-col space-y-2">
-            <SheetClose asChild>
+            {currentUser === 'admin' && <SheetClose asChild>
               <Button
                 variant="ghost"
                 className="justify-start"
@@ -208,7 +209,7 @@ export default function GroupsList({
               >
                 <UserPlus className="h-4 w-4 mr-2" /> Create Group
               </Button>
-            </SheetClose>
+            </SheetClose>}
             <div className="border-t border-gray-200 my-2"></div>
             <Button
               variant="ghost"
@@ -233,13 +234,13 @@ export default function GroupsList({
             <span className="font-medium text-[#00a884]">Groups Panel</span>
           </div>
           <div className="flex items-center space-x-1">
-            <button
+            {currentUser === 'admin' && <button
               onClick={() => setCreateGroupOpen(true)}
               className="hover:bg-[#f0f2f5] rounded-full p-2 cursor-pointer hidden md:block"
               title="Create Group"
             >
               <UserPlus className="h-5 w-5" />
-            </button>
+            </button>}
             <button
               onClick={handleLogout}
               className="hover:bg-[#f0f2f5] rounded-full p-2 cursor-pointer hidden md:block"
@@ -264,14 +265,14 @@ export default function GroupsList({
           <div className="text-sm font-medium text-slate-600">
             All Groups ({sortedGroups.length})
           </div>
-          <Button
+          {currentUser === 'admin' && <Button
             variant="default"
             size="sm"
             className="bg-[#00a884] hover:bg-[#009874] hidden md:flex"
             onClick={() => setCreateGroupOpen(true)}
           >
             <UserPlus className="h-4 w-4 mr-1" /> Create Group
-          </Button>
+          </Button>}
         </div>
       </div>
 

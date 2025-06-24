@@ -16,6 +16,7 @@ export default function UserChatPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [adminOnline, setAdminOnline] = useState(false);
+  const [subAdminOnline, setSubAdminOnline] = useState(false);
   const [showChat, setShowChat] = useState(false); // For mobile view transitions
   const [isMobile, setIsMobile] = useState(false); // Track if we're on mobile
   const [currentUser, setCurrentUser] = useState(null);
@@ -28,8 +29,12 @@ export default function UserChatPage() {
 
   const [unreadCounts, setUnreadCounts] = useState({});
   const [latestMessages, setLatestMessages] = useState({});
+  const [subAdmins, setSubAdmins] = useState([]);
+  const [selectedSubAdmin, setSelectedSubAdmin] = useState();
 
 
+  console.log('latestMessages', latestMessages)
+  console.log('unreadCounts', unreadCounts)
 
 
   // Check for mobile viewports
@@ -65,21 +70,23 @@ export default function UserChatPage() {
     if (socket && isLoggedIn) {
       const username = localStorage.getItem('chat_username');
 
-      console.log('in here')
+      // Listen for latest message updates - FIXED event names
+      socket.on('user:latestMessages', (messages) => {
+        console.log('user latest messages', messages)
+        setLatestMessages(messages);
+      });
 
+      // Listen for individual latest message updates
+      socket.on('user:latestMessageUpdate', (data) => {
+        setLatestMessages(prev => ({
+          ...prev,
+          ...data
+        }));
+      });
 
       // Listen for unread count updates - FIXED event names
       socket.on('user:unreadCounts', (counts) => {
-        console.log('Received unread counts:', counts);
         setUnreadCounts(counts);
-      });
-
-      // Listen for latest message updates - FIXED event names
-      socket.on('user:latestMessages', (messages) => {
-        console.log('Received latest messages:', messages);
-        console.log('Admin message structure:', messages['admin']); // Debug line
-
-        setLatestMessages(messages);
       });
 
       // Listen for individual unread count updates
@@ -91,29 +98,14 @@ export default function UserChatPage() {
         }));
       });
 
-      // Listen for individual latest message updates
-      socket.on('user:latestMessageUpdate', (data) => {
-        console.log('Received latest message update:', data);
-        console.log('Admin message update structure:', data['admin']);
-        setLatestMessages(prev => ({
-          ...prev,
-          ...data
-        }));
-      });
-
-      // Request initial data
-      socket.emit('user:getUnreadCounts', { username });
-      socket.emit('user:getLatestMessages', { username });
-
-
-      // Fetch user's groups on login
-      socket.emit('groups:fetch', { username });
-
-      // Listen for groups list
       socket.on('groups:list', (groupsList) => {
         const filtered = groupsList.filter(g => g.members.includes(username));
         setUserGroups(filtered);
       });
+
+      socket.on('user:subAdminsList', (subAdminsList) => {
+        setSubAdmins(subAdminsList);
+      })
 
       // Listen for new group additions
       socket.on('user:groupUpdated', (newGroup) => {
@@ -156,15 +148,19 @@ export default function UserChatPage() {
         handleLogout()
       });
 
-
+      // Request initial data
+      socket.emit('user:getUnreadCounts', { username });
+      socket.emit('user:getLatestMessages', { username });
+      socket.emit('groups:fetch', { username });
+      socket.emit('user:getSubAdmins', { username });
 
       return () => {
         socket.off('user:unreadCounts');
         socket.off('user:latestMessages');
         socket.off('user:unreadCountUpdate');
         socket.off('user:latestMessageUpdate');
-
         socket.off('user:groupsList');
+        socket.off('user:subAdminsList');
         socket.off('user:groupUpdated');
         socket.off('group:created');
         socket.off('group:updated');
@@ -187,15 +183,21 @@ export default function UserChatPage() {
           chatId: 'admin',
           chatType: 'admin'
         });
-      } else {
+      } else if (chatType === 'group') {
         socket.emit('user:markChatAsRead', {
           username,
           chatId: selectedChat,
           chatType: 'group'
         });
+      } else if (chatType === 'subadmin') {
+        socket.emit('user:markChatAsRead', {
+          username,
+          chatId: selectedChat,
+          chatType: 'subadmin'
+        });
       }
     }
-  }, [selectedChat, socket, isLoggedIn]);
+  }, [selectedChat, socket, isLoggedIn, chatType]);
 
   // for issue resolve
   useEffect(() => {
@@ -206,20 +208,16 @@ export default function UserChatPage() {
       setAdminOnline(status.isOnline);
     });
 
+    socket.on('subadmin:status', (status) => {
+      setSubAdminOnline(status.isOnline);
+    });
+
     // Request admin status on connection
     socket.emit('user:requestAdminStatus');
 
-    // Listen for new messages - Remove mobile-specific filtering
-    socket.on('message:receive', (message) => {
-      // Just log the message, don't filter based on mobile state
-      if (message.sender === 'admin') {
-        console.log('New message received from admin');
-        // You can add notification badge logic here if needed
-      }
-    });
-
     return () => {
       socket.off('admin:status');
+      socket.off('subadmin:status');
       socket.off('message:receive');
     };
   }, [socket]);
@@ -227,7 +225,6 @@ export default function UserChatPage() {
   // Function to handle logout
   const handleLogout = () => {
     localStorage.removeItem('chat_username');
-    // Keep deviceId for future recognition
     setIsLoggedIn(false);
     socket.emit('user:logout'); // Notify server about logout
     setShowChat(false); // Reset mobile view
@@ -244,13 +241,28 @@ export default function UserChatPage() {
     return <ChatLoader />;
   }
 
-  const handleChatSelect = (type = 'admin', groupId = null) => {
+  // const handleChatSelect = (type = 'admin', groupId = null) => {
+  //   if (type === 'admin') {
+  //     setSelectedChat('admin');
+  //     setChatType('user');
+  //   } else if (type === 'group' && groupId) {
+  //     setSelectedChat(groupId);
+  //     setChatType('group');
+  //   }
+  //   setShowChat(true);
+  // };
+
+  const handleChatSelect = (type = 'admin', groupId = null, subAdmin = null) => {
     if (type === 'admin') {
       setSelectedChat('admin');
       setChatType('user');
     } else if (type === 'group' && groupId) {
       setSelectedChat(groupId);
       setChatType('group');
+    } else if (type === 'subadmin' && subAdmin) {
+      setSelectedChat(subAdmin?.username);
+      setSelectedSubAdmin(subAdmin)
+      setChatType('subadmin');
     }
     setShowChat(true);
   };
@@ -327,45 +339,13 @@ export default function UserChatPage() {
                       className="w-4 h-4 md:w-5 md:h-5"
                     />
                   </p>
-                  {/* {unreadCounts['admin'] && unreadCounts['admin'] > 0 && (
-          <div className="bg-[#00a884] text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
-            {unreadCounts['admin']}
-          </div>
-        )} */}
-                  {unreadCounts['admin'] && unreadCounts['admin'] > 0 && selectedChat !== 'admin' && (
+                  {Number(unreadCounts['admin']) > 0 && selectedChat !== 'admin' && (
                     <div className="bg-[#00a884] text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
                       {unreadCounts['admin']}
                     </div>
                   )}
                 </div>
                 <div className="flex items-center justify-between">
-
-
-                  {/* <p className="text-sm text-gray-500 truncate overflow-hidden whitespace-nowrap">
-                    {latestMessages['admin'] ? (() => {
-                      const latestMsg = latestMessages['admin'];
-                      const isSelf = latestMsg.sender === localStorage.getItem('chat_username');
-                      const prefix = isSelf ? 'You: ' : '';
-
-                      let messageText = '';
-                      const msgContent = latestMsg.content || '';
-
-                      if (msgContent.includes("Document:")) {
-                        messageText = '📎 File';
-                      } else if (msgContent.includes("Image:")) {
-                        messageText = '🖼️ Image';
-                      } else if (msgContent.includes("Voice:")) {
-                        messageText = '🎵 Audio';
-                      } else {
-                        messageText = msgContent;
-                      }
-
-                      const displayText = prefix + messageText;
-                      return displayText.length > 20 ? displayText.substring(0, 20) + '...' : displayText;
-                    })() : (adminOnline ? 'Online' : 'Offline')}
-                  </p> */}
-
-
                   <p
                     className="text-sm text-gray-500 truncate overflow-hidden whitespace-nowrap max-w-[160px]"
                     title={(() => {
@@ -407,10 +387,6 @@ export default function UserChatPage() {
                       return displayText.length > 20 ? displayText.substring(0, 20) + '...' : displayText;
                     })() : (adminOnline ? 'Online' : 'Offline')}
                   </p>
-
-
-
-
                   {latestMessages['admin'] && latestMessages['admin'].createdAt && (
                     <span className="text-xs text-gray-400 ml-2">
                       {new Date(latestMessages['admin'].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -423,6 +399,102 @@ export default function UserChatPage() {
               <ChevronRight className="h-5 w-5 text-gray-400" />
             )}
           </div>
+          {/* SubAdmin Chats */}
+          {subAdmins?.map((subAdmin) => (
+            <div
+              key={subAdmin.username}
+              className={`cursor-pointer hover:bg-gray-100 p-3 border-b border-gray-200 flex justify-between items-center ${selectedChat === subAdmin.username ? 'bg-gray-100' : ''}`}
+              onClick={() => handleChatSelect('subadmin', null, subAdmin)}
+            >
+              <div className="flex items-center flex-1">
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center text-white font-bold overflow-hidden">
+                    {subAdmin.profilePicture ? (
+                      <img
+                        src={subAdmin.profilePicture}
+                        alt={`${subAdmin.username} profile picture`}
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                    ) : (
+                      subAdmin.username.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  {subAdmin.isOnline && (
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                  )}
+                </div>
+
+                <div className="ml-3 flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-gray-900 flex items-center gap-1">
+                      {subAdmin.username}
+                      <img
+                        src="/blue-tick.png"
+                        alt="Blue Tick"
+                        className="w-4 h-4 md:w-5 md:h-5"
+                      />
+                    </p>
+                    {Number(unreadCounts[subAdmin.username]) > 0 && selectedChat !== subAdmin.username && (
+                      <div className="bg-[#00a884] text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                        {unreadCounts[subAdmin.username]}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p
+                      className="text-sm text-gray-500 truncate overflow-hidden whitespace-nowrap max-w-[160px]"
+                      title={(() => {
+                        const latestMsg = latestMessages[subAdmin.username];
+                        if (latestMsg) {
+                          const isSelf = latestMsg.sender === localStorage.getItem('chat_username');
+                          const prefix = isSelf ? 'You: ' : '';
+                          const msgContent = latestMsg.content || '';
+
+                          if (msgContent.includes("Document:")) return prefix + '📎 File';
+                          if (msgContent.includes("Image:")) return prefix + '🖼️ Image';
+                          if (msgContent.includes("Voice:")) return prefix + '🎵 Audio';
+
+                          return prefix + msgContent;
+                        }
+
+                        return subAdmin.isOnline ? 'Online' : 'Offline';
+                      })()}
+                    >
+                      {latestMessages[subAdmin.username] ? (() => {
+                        const latestMsg = latestMessages[subAdmin.username];
+                        const isSelf = latestMsg.sender === localStorage.getItem('chat_username');
+                        const prefix = isSelf ? 'You: ' : '';
+
+                        let messageText = '';
+                        const msgContent = latestMsg.content || '';
+
+                        if (msgContent.includes("Document:")) {
+                          messageText = '📎 File';
+                        } else if (msgContent.includes("Image:")) {
+                          messageText = '🖼️ Image';
+                        } else if (msgContent.includes("Voice:")) {
+                          messageText = '🎵 Audio';
+                        } else {
+                          messageText = msgContent;
+                        }
+
+                        const displayText = prefix + messageText;
+                        return displayText.length > 20 ? displayText.substring(0, 20) + '...' : displayText;
+                      })() : (subAdmin.isOnline ? 'Online' : 'Offline')}
+                    </p>
+                    {latestMessages[subAdmin.username] && latestMessages[subAdmin.username].createdAt && (
+                      <span className="text-xs text-gray-400 ml-2">
+                        {new Date(latestMessages[subAdmin.username].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {isMobile && (
+                <ChevronRight className="h-5 w-5 text-gray-400" />
+              )}
+            </div>
+          ))}
           {/* // Updated User Groups mapping */}
           {userGroups.map((group) => (
             <div
@@ -448,37 +520,6 @@ export default function UserChatPage() {
                     )}
                   </div>
                   <div className="flex items-center justify-between">
-
-                    {/* <p className="text-sm text-gray-500 truncate">
-                      {latestMessages[group._id] ?
-                        `${latestMessages[group._id].sender === localStorage.getItem('chat_username') ? 'You' : latestMessages[group._id].sender}: ${latestMessages[group._id].content}` :
-                        `${group.members.length} members`
-                      }
-                    </p> */}
-                    {/* <p className="text-sm text-gray-500 truncate">
-                      {latestMessages[group._id] ? (() => {
-                        const latestMsg = latestMessages[group._id];
-                        const isSelf = latestMsg.sender === localStorage.getItem('chat_username');
-                        const senderName = isSelf ? 'You' : latestMsg.sender;
-                        const msgContent = latestMsg.content || '';
-
-                        let messageText = '';
-                        if (msgContent.includes("Document:")) {
-                          messageText = '📎 File';
-                        } else if (msgContent.includes("Image:")) {
-                          messageText = '🖼️ Image';
-                        } else if (msgContent.includes("Voice:")) {
-                          messageText = '🎵 Audio';
-                        } else {
-                          messageText = msgContent;
-                        }
-
-                        const displayText = `${senderName}: ${messageText}`;
-                        return displayText.length > 20 ? displayText.substring(0, 20) + '...' : displayText;
-                      })() : `${group.members.length} members`}
-                    </p> */}
-
-
                     <p
                       className="text-sm text-gray-500 truncate max-w-[160px]"
                       title={(() => {
@@ -556,11 +597,13 @@ export default function UserChatPage() {
       <div className={`${isMobile && !showChat ? 'hidden' : 'w-full'} md:flex-1 flex flex-col`}>
         <ChatInterface
           onBackClick={isMobile ? handleBackClick : null}
-          selectedUser={chatType === 'user' ? 'admin' : null}
+          // selectedUser={chatType === 'user' ? 'admin' : null}
+          selectedUser={chatType === 'user' ? 'admin' : chatType === 'subadmin' ? selectedChat : null}
           selectedGroup={chatType === 'group' ? selectedChat : null}
           chatType={chatType}
           groups={userGroups}
           admin={admin}
+          subAdmin={selectedSubAdmin}
         />
       </div>
     </div>
