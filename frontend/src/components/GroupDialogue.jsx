@@ -103,9 +103,11 @@ const CreateGroupDialog = ({
   };
 
   const handleClose = () => {
+    if (isEdit) {
+      setIsGroupEditMode(false)
+      setGroupToEdit(null)
+    }
     resetForm();
-    setIsGroupEditMode(false)
-    setGroupToEdit(null)
     onClose();
   };
 

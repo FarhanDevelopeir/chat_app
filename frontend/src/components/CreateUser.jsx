@@ -36,7 +36,10 @@ const CreateUser = ({
 }) => {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSubAdmin, setIsSubAdmin] = useState(false);
 
+
+    console.log('userToEdit', userToEdit)
 
 
 
@@ -44,19 +47,15 @@ const CreateUser = ({
     useEffect(() => {
         if (dialogOpen) {
             if (isEditMode && userToEdit) {
-                // Pre-populate form with user data for edit mode
                 setNewUsername(userToEdit.username);
-                // Don't show password for security reasons, let admin generate new one if needed
-                // setNewPassword(userToEdit.password);
+                setIsSubAdmin(userToEdit.isSubAdmin || false); // default false
             } else {
-                // Generate password for new user
                 handleGeneratePassword();
                 setNewUsername('');
-                // Don't show password for security reasons, let admin generate new one if needed
-                // setNewPassword(userToEdit.password);
+                setIsSubAdmin(false);
             }
         }
-    }, [dialogOpen, isEditMode, userToEdit])
+    }, [dialogOpen, isEditMode, userToEdit]);
 
 
     const generateStrongPassword = () => {
@@ -105,7 +104,8 @@ const CreateUser = ({
                 // Emit event to update existing user
                 const updateData = {
                     userID: userToEdit._id,
-                    username: newUsername
+                    username: newUsername,
+                    isSubAdmin
                 };
 
                 // Only include password if it's provided
@@ -129,6 +129,7 @@ const CreateUser = ({
                         setUserToEdit(null);
                         setNewUsername('');
                         setNewPassword('');
+                        setIsSubAdmin(false);
                         setDialogOpen(false);
                     } else {
                         toast({
@@ -141,7 +142,7 @@ const CreateUser = ({
                 });
             } else {
                 // Emit event to create a new user
-                socket.emit('admin:createUser', { username: newUsername, password: newPassword });
+                socket.emit('admin:createUser', { username: newUsername, password: newPassword, isSubAdmin });
 
                 // Listen for the response
                 socket.once('admin:userCreated', (response) => {
@@ -152,6 +153,7 @@ const CreateUser = ({
                         });
                         setNewUsername('');
                         setNewPassword('');
+                        setIsSubAdmin(false);
                         setDialogOpen(false);
                     } else {
                         toast({
@@ -174,15 +176,17 @@ const CreateUser = ({
     };
 
     const handleDialogClose = () => {
-        setIsEditMode(false);
-        setUserToEdit(null);
+        if (isEditMode) {
+            setIsEditMode(false);
+            setUserToEdit(null);
+        }
         setNewUsername('');
         setNewPassword('');
         setDialogOpen(false);
     };
 
     return (
-        <DialogContent  className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
             <DialogHeader>
                 <DialogTitle>{isEditMode ? "Edit User" : "Add New User"}</DialogTitle>
                 <DialogDescription>
@@ -234,6 +238,16 @@ const CreateUser = ({
                             Generate
                         </Button>
                     </div>
+                </div>
+                <div className="flex items-center space-x-2 pt-2">
+                    <input
+                        id="isSubAdmin"
+                        type="checkbox"
+                        checked={isSubAdmin}
+                        onChange={(e) => setIsSubAdmin(e.target.checked)}
+                        className="h-4 w-4"
+                    />
+                    <Label htmlFor="isSubAdmin">Is Sub Admin</Label>
                 </div>
             </div>
 

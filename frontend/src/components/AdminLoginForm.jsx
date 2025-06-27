@@ -22,36 +22,80 @@ export default function AdminLoginForm({ onSuccess }) {
       setError('Please enter both username and password');
       return;
     }
-    
+
     setLoading(true);
     setError('');
     socket.emit('admin:loginAttempt', { username, password });
 
   };
-  
+
+  // useEffect(() => {
+  //   if (!socket) return;
+
+  //   const handleLoginSuccess = () => {
+  //     setLoading(false);
+  //     localStorage.setItem('adminLoggedIn', 'true');
+  //     onSuccess();
+  //     window.location.reload(); // Reload to apply admin privileges
+  //   };
+
+  //   const handleLoginFailure = () => {
+  //     setLoading(false);
+  //     setError('Invalid admin credentials. Please try again.');
+  //   };
+
+  //   socket.on('admin:loginSuccess', handleLoginSuccess);
+  //   socket.on('admin:loginFailure', handleLoginFailure);
+
+  //   return () => {
+  //     socket.off('admin:loginSuccess', handleLoginSuccess);
+  //     socket.off('admin:loginFailure', handleLoginFailure);
+  //   };
+  // }, [socket, onSuccess]);
+
+
   useEffect(() => {
     if (!socket) return;
 
-    const handleLoginSuccess = () => {
+    const handleAdminLoginSuccess = () => {
       setLoading(false);
       localStorage.setItem('adminLoggedIn', 'true');
-      onSuccess();
+      localStorage.setItem('userType', 'admin');
+      onSuccess('admin');
       window.location.reload(); // Reload to apply admin privileges
+    };
+
+    const handleSubAdminLoginSuccess = (userData) => {
+      setLoading(false);
+      localStorage.setItem('adminLoggedIn', 'true');
+      localStorage.setItem('userType', 'subadmin');
+      localStorage.setItem('subAdminUsername', username);
+      onSuccess('subadmin', userData);
+      window.location.reload(); // Reload to apply subadmin privileges
     };
 
     const handleLoginFailure = () => {
       setLoading(false);
-      setError('Invalid admin credentials. Please try again.');
+      setError('Invalid credentials. Please try again.');
     };
 
-    socket.on('admin:loginSuccess', handleLoginSuccess);
+    const handleSubAdminLoginError = (data) => {
+      setLoading(false);
+      setError(data.message || 'Invalid sub-admin credentials. Please try again.');
+    };
+
+    socket.on('admin:loginSuccess', handleAdminLoginSuccess);
+    socket.on('subadmin:loginSuccess', handleSubAdminLoginSuccess);
     socket.on('admin:loginFailure', handleLoginFailure);
+    socket.on('subadmin:loginError', handleSubAdminLoginError);
 
     return () => {
-      socket.off('admin:loginSuccess', handleLoginSuccess);
+      socket.off('admin:loginSuccess', handleAdminLoginSuccess);
+      socket.off('subadmin:loginSuccess', handleSubAdminLoginSuccess);
       socket.off('admin:loginFailure', handleLoginFailure);
+      socket.off('subadmin:loginError', handleSubAdminLoginError);
     };
-  }, [socket, onSuccess]);
+  }, [socket, onSuccess, username]);
 
   return (
     <Card className="w-full max-w-md mx-auto shadow-lg">
@@ -75,7 +119,7 @@ export default function AdminLoginForm({ onSuccess }) {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        
+
         <div className="space-y-2">
           <Label htmlFor="username">Username</Label>
           <div className="relative">
@@ -89,7 +133,7 @@ export default function AdminLoginForm({ onSuccess }) {
             />
           </div>
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
           <div className="relative">
@@ -97,7 +141,7 @@ export default function AdminLoginForm({ onSuccess }) {
             <Input
               id="password"
               type="password"
-              className="pl-9" 
+              className="pl-9"
               placeholder="Admin password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -110,9 +154,9 @@ export default function AdminLoginForm({ onSuccess }) {
           </div>
         </div>
       </CardContent>
-      
+
       <CardFooter>
-        <Button 
+        <Button
           className="w-full bg-[#00a884] hover:bg-[#008f72]"
           onClick={handleLogin}
           disabled={loading}

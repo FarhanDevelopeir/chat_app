@@ -9,12 +9,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useEffect, useState } from 'react';
 
 export default function ChatHeader({
   isAdmin,
+  isSubAdmin,
   selectedUser,
   selectedGroup,
   admin,
+  subAdmin,
   groups,
   onBackClick,
   chatType,
@@ -25,14 +28,29 @@ export default function ChatHeader({
   onEditGroup,
   onToggleSearch,
 }) {
+
+
+  console.log('chat type in header', chatType)
+
+
   const isGroupChat = chatType === 'group';
+
+    console.log('isGroupChat in header', isGroupChat)
+
 
   const getChatDisplayName = () => {
     if (isGroupChat) {
       const group = groups.find(g => g._id === selectedGroup);
       return group ? group.name : 'Group';
     }
-    return isAdmin ? selectedUser?.username : 'Admin Support';
+    if (isAdmin || isSubAdmin) {
+      return selectedUser?.username;
+    }
+
+    if (chatType === 'subadmin') {
+      return typeof selectedUser === 'string' ? selectedUser : selectedUser?.username;
+    }
+    return 'Admin Support';
   };
 
   return (
@@ -53,11 +71,21 @@ export default function ChatHeader({
               <Users className="h-5 w-5" />
             ) : (
               <>
-                {isAdmin ? (
+                {chatType === 'subadmin' ? (
+                  subAdmin?.profilePicture ? (
+                    <img
+                      src={subAdmin.profilePicture}
+                      alt={`${subAdmin.username}'s profile picture`}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    subAdmin?.username?.charAt(0).toUpperCase()
+                  )
+                ) : (isAdmin || isSubAdmin) ? (
                   selectedUser?.profilePicture ? (
                     <img
                       src={selectedUser.profilePicture}
-                      alt={`${selectedUser}'s profile picture`}
+                      alt={`${selectedUser.username}'s profile picture`}
                       className="w-full h-full object-cover rounded-full"
                     />
                   ) : (
@@ -105,8 +133,8 @@ export default function ChatHeader({
         </div>
       </div>
 
-      {isAdmin && <div className="text-sm text-gray-500 mt-2">
-        IP: {isAdmin ? selectedUser?.ipAddress || "Not Found" : ""}
+      {(isAdmin || isSubAdmin) && !isGroupChat && <div className="text-sm text-gray-500 mt-2">
+        IP: {(isAdmin || isSubAdmin) ? selectedUser?.ipAddress || "Not Found" : ""}
       </div>}
 
       {/* Action buttons */}

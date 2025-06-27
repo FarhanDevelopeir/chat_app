@@ -50,6 +50,7 @@ export function SocketProvider({ children }) {
 
   // Utility functions
   const removeDuplicateMessages = useCallback((messages) => {
+    if (!Array.isArray(messages)) return [];
     const uniqueMessages = [];
     const seen = new Set();
 
@@ -210,7 +211,7 @@ export function SocketProvider({ children }) {
       // For desktop, try native notifications first
       if (notificationPermission === 'granted' || notificationPermission === 'default') {
         // Your existing notification code
-        const senderName = isAdmin ? message.sender : 'Admin Support';
+        const senderName = message.sender
         let notificationBody = '';
 
         if (message.audio) {
@@ -243,8 +244,11 @@ export function SocketProvider({ children }) {
   }, [notificationPermission, showToastNotification, showTabNotification, vibrateDevice, updateFaviconBadge]);
 
   // Socket event handlers
-  const setupSocketListeners = useCallback((socketInstance, username, isAdmin, selectedUser, selectedGroup, isGroupChat) => {
+  const setupSocketListeners = useCallback((socketInstance, username, isAdmin, isSubAdmin, selectedUser, selectedGroup, isGroupChat, chatType,) => {
 
+
+    console.log('selectedUser on top', selectedUser)
+    console.log('chatType on top', chatType)
     const handleMessagesHistory = (data) => {
       const { messages: messageHistory, hasMore, page } = data;
       const uniqueMessages = removeDuplicateMessages(messageHistory);
@@ -292,8 +296,107 @@ export function SocketProvider({ children }) {
 
 
     // Updated handleReceiveMessage function
-    const handleReceiveMessage = (message) => {
-      if (!message) return;
+    // const handleReceiveMessage = (message) => {
+    //   if (!message) return;
+
+    //   setMessages(prevMessages => {
+    //     // Safety check
+    //     if (!prevMessages || !Array.isArray(prevMessages)) {
+    //       return [message];
+    //     }
+
+    //     const messageExists = prevMessages.some(m =>
+    //       (m._id && m._id === message._id) ||
+    //       (m.content === message.content &&
+    //         m.sender === message.sender &&
+    //         ((isGroupChat && m.groupId === message.groupId) ||
+    //           (!isGroupChat && m.receiver === message.receiver)) &&
+    //         Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 5000)
+    //     );
+
+    //     if (messageExists) return prevMessages;
+
+    //     // Filter based on chat type
+    //     if (isGroupChat) {
+    //       if (message.groupId !== selectedGroup) return prevMessages;
+    //     } else {
+    //       if (isAdmin && message.sender !== selectedUser?.username && message.receiver !== selectedUser?.username) {
+    //         return prevMessages;
+    //       }
+    //     }
+
+        const newMessages = [...prevMessages, message];
+        return removeDuplicateMessages(newMessages);
+      });
+
+     
+      setLatestMessages(prev => {
+        let chatId;
+
+        if (message.groupId) {
+          // For group messages
+          chatId = message.groupId;
+        } else {
+          // For direct messages - Updated logic for subAdmin
+          if (isAdmin) {
+            // Admin side: chatId should be the user
+            chatId = message.sender === 'admin' ? message.receiver : message.sender;
+          } else if (isSubAdmin) {
+            // SubAdmin side: chatId should be the user they're chatting with
+            chatId = message.sender === username ? message.receiver : message.sender;
+          } else {
+            // User side: Determine if chatting with admin or subAdmin
+            if (message.sender === 'admin' || message.receiver === 'admin') {
+              chatId = 'admin';
+            } else {
+              // Check if sender/receiver is a subAdmin
+              const otherParty = message.sender === username ? message.receiver : message.sender;
+              // For now, use the other party's username - you might want to add isSubAdmin check here
+              chatId = otherParty;
+            }
+          }
+        }
+
+        return {
+          ...prev,
+          [chatId]: {
+            content: message.content,
+            sender: message.sender,
+            createdAt: message.createdAt,
+            isFile: !!message.file,
+            isAudio: !!message.audio
+          }
+        };
+      });
+
+      // Show unread messages count - Updated for subAdmin
+      if (message.sender !== username) {
+        // For admin messages
+        if (message.sender === 'admin') {
+          socketInstance.emit('user:updateUnreadCount', {
+            username,
+            chatId: 'admin',
+            increment: true
+          });
+        }
+        // For subAdmin messages (when user receives from subAdmin)
+        else if (!isAdmin && !isSubAdmin) {
+          // Check if sender is subAdmin (you might need to maintain a list or check user roles)
+          socketInstance.emit('user:updateUnreadCount', {
+            username,
+            chatId: message.sender, // Use sender's username as chatId for subAdmin conversations
+            increment: true
+          });
+        }
+        // For group messages
+        else if (message.groupId) {
+          socketInstance.emit('user:updateUnreadCount', {
+            username,
+            chatId: message.groupId,
+            increment: true
+          });
+        }
+      }
 
       setMessages(prevMessages => {
         // Safety check
@@ -312,89 +415,90 @@ export function SocketProvider({ children }) {
 
         if (messageExists) return prevMessages;
 
+        console.log('prevMessages', prevMessages)
+
         // Filter based on chat type
         if (isGroupChat) {
           if (message.groupId !== selectedGroup) return prevMessages;
         } else {
-          if (isAdmin && message.sender !== selectedUser?.username && message.receiver !== selectedUser?.username) {
-            return prevMessages;
+          // Updated logic for admin, subAdmin, and user filtering
+          // if (isAdmin && message.sender !== selectedUser?.username && message.receiver !== selectedUser?.username) {
+          //   return prevMessages;
+          // }
+          // if (isAdmin && message.sender !== selectedUser?.username && message.receiver !== selectedUser?.username) {
+          //   return prevMessages;
+          // }
+          // if (isSubAdmin && message.sender !== selectedUser?.username && message.receiver !== selectedUser?.username) {
+          //   return prevMessages;
+          // }
+
+
+          console.log('is admin inside setMessages', isAdmin)
+          if (isAdmin) {
+            console.log('chatType in here i n admin', chatType)
+            const isIrrelevantMessage =
+              message.sender !== selectedUser?.username &&
+              message.receiver !== selectedUser?.username;
+            console.log('isIrrelevantMessage', isIrrelevantMessage)
+            console.log('message', message)
+            console.log('selectedUser', selectedUser)
+            if (message.sender !== selectedUser?.username && message.receiver !== selectedUser?.username) {
+              return prevMessages;
+            }
+
+          } else if (isSubAdmin) {
+            if (message.sender !== selectedUser?.username && message.receiver !== selectedUser?.username) {
+              return prevMessages;
+            }
+          } else {
+            console.log('chatType in here in user', chatType)
+            if (chatType === 'user') {
+              if (message.sender !== 'admin') {
+                return prevMessages;
+              }
+            } else {
+              if (message.sender === 'admin') {
+                return prevMessages;
+              }
+            }
           }
         }
 
         const newMessages = [...prevMessages, message];
+
+        console.log('newMessages in function', newMessages)
         return removeDuplicateMessages(newMessages);
       });
 
-     
-      setLatestMessages(prev => {
-        let chatId;
+      console.log('isSubAdmin in context', isSubAdmin)
 
-        if (message.groupId) {
-          // For group messages
-          chatId = message.groupId;
-        } else {
-          // For direct messages
-          if (isAdmin) {
-            // Admin side: chatId should be the user
-            chatId = message.sender === 'admin' ? message.receiver : message.sender;
-          } else {
-            // User side: ALWAYS use 'admin' for any admin conversation
-            chatId = 'admin';
-          }
-        }
-
-        return {
-          ...prev,
-          [chatId]: {
-            content: message.content,
-            sender: message.sender,
-            createdAt: message.createdAt,
-            isFile: !!message.file,
-            isAudio: !!message.audio
-          }
-        };
-      });
-
-
-
-      // Show user side unread messages length
-      if (message.sender !== username) {
-        // For admin messages
-        if (message.sender === 'admin') {
-          socketInstance.emit('user:updateUnreadCount', {
-            username,
-            chatId: 'admin',
-            increment: true
-          });
-        }
-        // For group messages
-        else if (message.groupId) {
-          socketInstance.emit('user:updateUnreadCount', {
-            username,
-            chatId: message.groupId,
-            increment: true
-          });
-        }
-      }
-
-      // Mark as read and play notification
+      // Mark as read - Updated for subAdmin
       if (isGroupChat && message.groupId === selectedGroup) {
         socketInstance.emit('group:markRead', {
           groupId: selectedGroup,
           userId: username
         });
       } else if (!isGroupChat && message.receiver === username) {
-        if (!isAdmin || (isAdmin && selectedUser?.username === message.sender)) {
+        console.log('isSubAdmin in context', isSubAdmin)
+        console.log('Admin in context', isAdmin)
+        if (
+          (!isAdmin && !isSubAdmin) || // regular user
+          (isAdmin && selectedUser?.username === message.sender) ||
+          (isSubAdmin && selectedUser?.username === message.sender)
+        ) {
           socketInstance.emit('messages:markRead', {
             sender: message.sender,
-            receiver: message.receiver
+            receiver: message.receiver,
+            chatType: chatType,
+            isAdmin: isAdmin,
+            isSubAdmin: isSubAdmin
           });
         }
       }
 
       // Play notification sound
       if (message.sender !== username) {
-        showHybridNotification(message, isAdmin);
+        showHybridNotification(message, isAdmin || isSubAdmin);
         try {
           const audio = new Audio('https://res.cloudinary.com/duqzgojyp/video/upload/v1737207753/tpnevoboszj1rnsdsto1.mp3');
           audio.play().catch(err => console.log('Audio play error:', err));
@@ -403,6 +507,73 @@ export function SocketProvider({ children }) {
         }
       }
     };
+
+    // const handleMessageSent = (message) => {
+    //   setMessages(prevMessages => {
+    //     const index = prevMessages.findIndex(m =>
+    //     (m.content === message.content &&
+    //       m.sender === message.sender &&
+    //       ((isGroupChat && m.groupId === message.groupId) ||
+    //         (!isGroupChat && m.receiver === message.receiver)) &&
+    //       !m._id)
+    //     );
+
+    //     if (index !== -1) {
+    //       const newMessages = [...prevMessages];
+    //       newMessages[index] = message;
+    //       return removeDuplicateMessages(newMessages);
+    //     }
+
+    //     const exists = prevMessages.some(m => m._id === message._id);
+    //     if (exists) return prevMessages;
+
+    //     return removeDuplicateMessages([...prevMessages, message]);
+    //   });
+
+    //   // And in handleMessageSent:
+    //   setLatestMessages(prev => {
+    //     let chatId;
+
+    //     if (message.groupId) {
+    //       chatId = message.groupId;
+    //     } else {
+    //       if (isAdmin) {
+    //         chatId = message.receiver;
+    //       } else {
+    //         // User side: ALWAYS use 'admin'
+    //         chatId = 'admin';
+    //       }
+    //     }
+
+    //     return {
+    //       ...prev,
+    //       [chatId]: {
+    //         content: message.content,
+    //         sender: message.sender,
+    //         createdAt: message.createdAt,
+    //         isFile: !!message.file,
+    //         isAudio: !!message.audio
+    //       }
+    //     };
+    //   });
+
+    //   // Show user side unread messages length
+    //   // Reset unread count when messages are loaded
+    //   if (isGroupChat) {
+    //     socketInstance.emit('user:updateUnreadCount', {
+    //       username,
+    //       chatId: selectedGroup,
+    //       reset: true
+    //     });
+    //   } else {
+    //     socketInstance.emit('user:updateUnreadCount', {
+    //       username,
+    //       chatId: 'admin',
+    //       reset: true
+    //     });
+    //   }
+
+    // };
 
     const handleMessageSent = (message) => {
       setMessages(prevMessages => {
@@ -426,7 +597,7 @@ export function SocketProvider({ children }) {
         return removeDuplicateMessages([...prevMessages, message]);
       });
 
-      // And in handleMessageSent:
+      // Updated latest messages logic for subAdmin
       setLatestMessages(prev => {
         let chatId;
 
@@ -435,9 +606,17 @@ export function SocketProvider({ children }) {
         } else {
           if (isAdmin) {
             chatId = message.receiver;
+          } else if (isSubAdmin) {
+            // SubAdmin side: use receiver as chatId
+            chatId = message.receiver;
           } else {
-            // User side: ALWAYS use 'admin'
-            chatId = 'admin';
+            // User side: Determine if chatting with admin or subAdmin
+            if (message.receiver === 'admin' || message.sender === 'admin') {
+              chatId = 'admin';
+            } else {
+              // For subAdmin conversations, use the subAdmin's username
+              chatId = message.receiver;
+            }
           }
         }
 
@@ -453,8 +632,7 @@ export function SocketProvider({ children }) {
         };
       });
 
-      // Show user side unread messages length
-      // Reset unread count when messages are loaded
+      // Reset unread count when messages are sent - Updated for subAdmin
       if (isGroupChat) {
         socketInstance.emit('user:updateUnreadCount', {
           username,
@@ -462,14 +640,47 @@ export function SocketProvider({ children }) {
           reset: true
         });
       } else {
-        socketInstance.emit('user:updateUnreadCount', {
-          username,
-          chatId: 'admin',
-          reset: true
-        });
+        // if (isAdmin || isSubAdmin) {
+        //   // Admin or SubAdmin sending message
+        //   socketInstance.emit('user:updateUnreadCount', {
+        //     username,
+        //     chatId: message.receiver,
+        //     reset: true
+        //   });
+        // } else {
+        //   // User sending message - determine if to admin or subAdmin
+        //   if (message.receiver === 'admin') {
+        //     socketInstance.emit('user:updateUnreadCount', {
+        //       username,
+        //       chatId: 'admin',
+        //       reset: true
+        //     });
+        //   } else {
+        //     // Sending to subAdmin
+        //     socketInstance.emit('user:updateUnreadCount', {
+        //       username,
+        //       chatId: message.receiver,
+        //       reset: true
+        //     });
+        //   }
+        // }
+        if (message.sender === 'admin') {
+          socketInstance.emit('user:updateUnreadCount', {
+            username,
+            chatId: 'admin',
+            reset: true
+          });
+        } else {
+          // Sending to subAdmin
+          socketInstance.emit('user:updateUnreadCount', {
+            username,
+            chatId: message.sender,
+            reset: true
+          });
+        }
       }
-
     };
+
 
     const handleReadStatusUpdate = (updatedMessages) => {
       setMessages(prevMessages => {
@@ -636,6 +847,8 @@ export function SocketProvider({ children }) {
           (!isGroupChat && m.receiver === tempMessage.receiver)) &&
         Math.abs(new Date(m.createdAt) - new Date(tempMessage.createdAt)) < 5000
       );
+
+      console.log('setMessages after sending', messages)
 
       if (!isDuplicate) {
         return [...prevMessages, tempMessage];
@@ -885,9 +1098,41 @@ export function SocketProvider({ children }) {
 
 
   // 3. Add this NEW useEffect after your existing ones:
+  // useEffect(() => {
+  //   if (socket) {
+  //     // Listen for latest message updates
+  //     socket.on('admin:latestMessageUpdate', (messageUpdates) => {
+  //       setLatestMessages(prev => ({
+  //         ...prev,
+  //         ...messageUpdates
+  //       }));
+  //     });
+
+  //     // Request latest messages when component mounts
+
+  //     socket.emit('admin:getLatestMessages', { username: "admin" });
+
+
+  //     // socket.emit('user:getLatestMessages', { username });
+
+
+
+  //     // Listen for initial latest messages
+  //     socket.on('admin:latestMessages', (messages) => {
+  //       setLatestMessages(messages);
+  //     });
+
+  //     return () => {
+  //       socket.off('admin:latestMessageUpdate');
+  //       socket.off('admin:latestMessages');
+  //     };
+  //   }
+  // }, [socket]);
+
+
   useEffect(() => {
     if (socket) {
-      // Listen for latest message updates
+      // Listen for latest message updates from both admin and subadmin
       socket.on('admin:latestMessageUpdate', (messageUpdates) => {
         setLatestMessages(prev => ({
           ...prev,
@@ -895,23 +1140,37 @@ export function SocketProvider({ children }) {
         }));
       });
 
-      // Request latest messages when component mounts
+      socket.on('subadmin:latestMessageUpdate', (messageUpdates) => {
+        setLatestMessages(prev => ({
+          ...prev,
+          ...messageUpdates
+        }));
+      });
 
-      socket.emit('admin:getLatestMessages', { username: "admin" });
+      // Determine user type and emit appropriate request
+      const userType = localStorage.getItem('userType');
+      const subAdminUsername = localStorage.getItem('subAdminUsername');
 
+      if (userType === 'admin') {
+        socket.emit('admin:getLatestMessages', { username: "admin" });
+      } else if (userType === 'subadmin' && subAdminUsername) {
+        socket.emit('admin:getLatestMessages', { username: subAdminUsername });
+      }
 
-      // socket.emit('user:getLatestMessages', { username });
-
-
-
-      // Listen for initial latest messages
+      // Listen for initial latest messages from both sources
       socket.on('admin:latestMessages', (messages) => {
+        setLatestMessages(messages);
+      });
+
+      socket.on('subadmin:latestMessages', (messages) => {
         setLatestMessages(messages);
       });
 
       return () => {
         socket.off('admin:latestMessageUpdate');
+        socket.off('subadmin:latestMessageUpdate');
         socket.off('admin:latestMessages');
+        socket.off('subadmin:latestMessages');
       };
     }
   }, [socket]);
