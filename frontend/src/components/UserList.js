@@ -547,7 +547,8 @@ export default function UsersList({
               user={currentUser}
               onProfileUpdate={handleProfileUpdate}
               socket={socket}
-              isAdmin={true}
+              {...(userType === 'admin' && { isAdmin: true })}
+              {...(userType === 'subadmin' && { isSubAdmin: true })}
             />
             <button
               onClick={handleLogout}
@@ -608,7 +609,7 @@ export default function UsersList({
             </Button>
           </div>
 
-          {<Button
+          {userType === 'admin' && <Button
             variant="default"
             size="sm"
             className="bg-[#00a884] hover:bg-[#009874]"
