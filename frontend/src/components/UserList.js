@@ -480,7 +480,8 @@ export default function UsersList({
               user={currentUser}
               onProfileUpdate={handleProfileUpdate}
               socket={socket}
-              isAdmin={true}
+              {...(userType === 'admin' && { isAdmin: true })}
+              {...(userType === 'subadmin' && { isSubAdmin: true })}
             />
             <button
               onClick={handleLogout}

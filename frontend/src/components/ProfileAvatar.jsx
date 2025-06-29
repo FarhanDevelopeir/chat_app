@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Camera, Upload, User } from 'lucide-react';
 
-const ProfileAvatar = ({ user, onProfileUpdate, socket, isAdmin = false }) => {
+const ProfileAvatar = ({ user, onProfileUpdate, socket, isAdmin = false, isSubAdmin = false }) => {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [previewImage, setPreviewImage] = useState(null);
@@ -37,6 +37,11 @@ const ProfileAvatar = ({ user, onProfileUpdate, socket, isAdmin = false }) => {
                 if (isAdmin) {
                     socket.emit('admin:updateProfile', {
                         username: 'admin',
+                        profilePicture: data.secure_url
+                    });
+                } else if (isSubAdmin) {
+                    socket.emit('subadmin:updateProfile', {
+                        username: user.username,
                         profilePicture: data.secure_url
                     });
                 } else {
@@ -183,6 +188,11 @@ const ProfileAvatar = ({ user, onProfileUpdate, socket, isAdmin = false }) => {
                                             if (isAdmin) {
                                                 socket.emit('admin:updateProfile', {
                                                     username: 'admin',
+                                                    profilePicture: null
+                                                });
+                                            } else if (isSubAdmin){
+                                                socket.emit('subadmin:updateProfile', {
+                                                    username: user.username,
                                                     profilePicture: null
                                                 });
                                             } else {
