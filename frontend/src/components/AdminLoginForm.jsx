@@ -29,29 +29,6 @@ export default function AdminLoginForm({ onSuccess }) {
 
   };
 
-  // useEffect(() => {
-  //   if (!socket) return;
-
-  //   const handleLoginSuccess = () => {
-  //     setLoading(false);
-  //     localStorage.setItem('adminLoggedIn', 'true');
-  //     onSuccess();
-  //     window.location.reload(); // Reload to apply admin privileges
-  //   };
-
-  //   const handleLoginFailure = () => {
-  //     setLoading(false);
-  //     setError('Invalid admin credentials. Please try again.');
-  //   };
-
-  //   socket.on('admin:loginSuccess', handleLoginSuccess);
-  //   socket.on('admin:loginFailure', handleLoginFailure);
-
-  //   return () => {
-  //     socket.off('admin:loginSuccess', handleLoginSuccess);
-  //     socket.off('admin:loginFailure', handleLoginFailure);
-  //   };
-  // }, [socket, onSuccess]);
 
 
   useEffect(() => {

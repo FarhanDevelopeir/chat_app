@@ -385,21 +385,7 @@ export default function FileMessage({ file }) {
               </div>
             </div>
 
-            {/* Instructions */}
-            {/* <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 z-20">
-              <div className="bg-black/50 rounded-lg px-3 py-1">
-                <p className="text-white text-xs opacity-70">
-                  {zoom > 1 ? (
-                    <span className="sm:hidden">Drag to pan • Tap outside to close</span>
-                  ) : (
-                    <span className="sm:hidden">Tap outside to close</span>
-                  )}
-                  {zoom > 1 && (
-                    <span className="hidden sm:inline">Click and drag to pan</span>
-                  )}
-                </p>
-              </div>
-            </div> */}
+          
           </DialogContent>
         </Dialog>
       )}

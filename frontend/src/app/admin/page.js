@@ -41,15 +41,6 @@ export default function AdminChatPage() {
   useEffect(() => {
     if (!socket) return;
 
-    // Listen for updated groups list
-    // const handleGroupsListUpdated = (updatedGroups) => {
-    //   // Filter groups where admin is a member and update state
-    //   const adminGroups = updatedGroups.filter(group =>
-    //     group.members.includes('admin')
-    //   );
-    //   setGroups(adminGroups);
-    // };
-
     const handleGroupsListUpdated = (updatedGroups) => {
       // Filter groups where current user is a member
       const currentUsername = userType === 'admin' ? 'admin' : currentUser?.username;
@@ -62,13 +53,7 @@ export default function AdminChatPage() {
     };
 
 
-    // Listen for new group messages to update groups list order
-    // const handleGroupMessage = (message) => {
-    //   // Fetch fresh groups list to ensure proper sorting
-    //   if (socket) {
-    //     socket.emit('groups:fetch', { username: 'admin' });
-    //   }
-    // };
+   
 
     const handleGroupMessage = (message) => {
       // Fetch fresh groups list to ensure proper sorting
@@ -111,16 +96,6 @@ export default function AdminChatPage() {
     }
   }, [selectedUser, isMobile, selectedGroup]);
 
-  // useEffect(() => {
-  //   const alreadyLoggedIn = localStorage.getItem('adminLoggedIn');
-  //   if (alreadyLoggedIn === 'true' && socket) {
-  //     socket.emit('admin:login');
-  //     setIsLoggedIn(true);
-  //     setLoading(false);
-  //   } else {
-  //     setLoading(false);
-  //   }
-  // }, [socket]);
 
   useEffect(() => {
     const alreadyLoggedIn = localStorage.getItem('adminLoggedIn');
@@ -163,56 +138,6 @@ export default function AdminChatPage() {
   }, [socket]);
 
 
-
-
-  // useEffect(() => {
-  //   if (socket && isLoggedIn) {
-  //     // Fetch groups for admin
-  //     socket.emit('groups:fetch', { username: 'admin' });
-
-  //     // Listen for groups list updates
-  //     socket.on('groups:list', (groupsList) => {
-  //       // Filter groups where admin is a member
-  //       const adminGroups = groupsList.filter(group =>
-  //         group.members.includes('admin')
-  //       );
-  //       setGroups(adminGroups);
-  //     });
-
-  //     // Listen for new group creation
-  //     socket.on('group:created', (data) => {
-  //       if (data.group.members.includes('admin')) {
-  //         setGroups(prev => [data.group, ...prev]);
-  //       }
-  //     });
-
-  //     socket.on('group:updated', (data) => {
-  //       if (data.group.members.includes('admin')) {
-  //         setGroups(prev =>
-  //           prev.map(group =>
-  //             group._id === data.group._id ? data.group : group
-  //           )
-  //         );
-  //       }
-  //     });
-
-  //     socket.on('admin:profileUpdated', (userData) => {
-  //       setCurrentUser(userData);
-  //     });
-
-  //     socket.on('admin:profiledata', (userData) => {
-  //       setCurrentUser(userData);
-  //     });
-
-  //     return () => {
-  //       socket.off('groups:list');
-  //       socket.off('group:created');
-  //       socket.off('group:updated');
-  //       socket.off('admin:profileUpdated');
-  //       socket.off('admin:profiledata');
-  //     };
-  //   }
-  // }, [socket, isLoggedIn]);
 
   useEffect(() => {
     if (socket && isLoggedIn && userType) {
@@ -319,11 +244,7 @@ export default function AdminChatPage() {
     }));
   };
 
-  // const handleLogout = () => {
-  //   localStorage.removeItem('adminLoggedIn');
-  //   setIsLoggedIn(false);
-  //   socket.emit('admin:logout');
-  // };
+ 
 
   const handleLogout = () => {
     localStorage.removeItem('adminLoggedIn');

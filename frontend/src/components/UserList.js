@@ -89,57 +89,7 @@ export default function UsersList({
     };
   }, []);
 
-  // useEffect(() => {
-  //   if (socket) {
-  //     // Request unread counts for all users
-  //     socket.emit('admin:getUnreadCounts');
 
-  //     // Listen for unread counts updates
-  //     socket.on('admin:unreadCounts', (counts) => {
-  //       setUnreadCounts(counts);
-  //     });
-
-  //     // Listen for real-time unread count updates
-  //     socket.on('admin:unreadCountUpdate', ({ username, count }) => {
-  //       setUnreadCounts(prev => ({
-  //         ...prev,
-  //         [username]: count
-  //       }));
-  //     });
-
-
-  //     // Listen for latest message updates - FIXED event names
-  //     socket.on('admin:latestMessages', (messages) => {
-  //       console.log('Received latest messages:', messages);
-  //       console.log('Admin message structure:', messages['admin']); // Debug line
-
-  //       setLatestMessages(messages);
-  //     });
-
-
-
-  //     // Listen for individual latest message updates
-  //     socket.on('admin:latestMessageUpdate', (data) => {
-  //       console.log('Received latest message update:', data);
-  //       console.log('Admin message update structure:', data['admin']);
-  //       setLatestMessages(prev => ({
-  //         ...prev,
-  //         ...data
-  //       }));
-  //     });
-
-
-  //     socket.emit('user:getLatestMessages', { username: 'admin' });
-
-  //     // Clean up listeners
-  //     return () => {
-  //       socket.off('admin:unreadCounts');
-  //       socket.off('admin:unreadCountUpdate');
-  //       socket.off('admin:latestMessages');
-  //       socket.off('admin:latestMessageUpdate');
-  //     };
-  //   }
-  // }, [latestMessages]);
 
   useEffect(() => {
     if (socket) {
@@ -193,14 +143,7 @@ export default function UsersList({
         }));
       });
 
-      // if (userType === 'admin') {
-      //   socket.emit('admin:getUnreadCounts');
-      //   socket.emit('user:getLatestMessages', { username: 'admin' });
-      // }
-      // else if (userType === 'subadmin') {
-      //   socket.emit('subadmin:getUnreadCounts', { username:  currentUserRef.current?.username  });
-      //   socket.emit('user:getLatestMessages', { username:  currentUserRef.current?.username  });
-      // }
+    
 
       // Clean up listeners
       return () => {
@@ -231,17 +174,7 @@ export default function UsersList({
   }, [socket, userType]);
 
 
-  // useEffect(() => {
-  //   if (selectedUser && socket) {
-  //     setTimeout(() => {
-  //       if (userType === 'admin') {
-  //         socket.emit('admin:getUnreadCounts');
-  //       } else if (userType === 'subadmin') {
-  //         socket.emit('subadmin:getUnreadCounts', { username: currentUser.username });
-  //       }
-  //     }, 100);
-  //   }
-  // }, [socket]);
+  
 
   // Sort users by most recent message and apply filters
   useEffect(() => {
@@ -608,7 +541,7 @@ export default function UsersList({
             </Button>
           </div>
 
-          {<Button
+          {userType === 'admin' && <Button
             variant="default"
             size="sm"
             className="bg-[#00a884] hover:bg-[#009874]"

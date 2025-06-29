@@ -327,41 +327,10 @@ export default function GroupsList({
                           </div>
                         </div>
 
-                        {/* <div className="flex items-center justify-between mt-1">
-                          <p className="text-xs text-slate-500 truncate pr-2">
-                            {group.members.length} members
-                          </p>
-                        </div> */}
+                     
 
                         <div className="flex items-center justify-between mt-1">
 
-
-                          {/* <p className="text-xs text-slate-500 truncate pr-2">
-  {(() => {
-    const latestMsg = latestMessages[group._id];
-
-    if (latestMsg) {
-      const prefix = latestMsg.sender === currentUser ? 'You: ' : `${latestMsg.sender}: `;
-      const content = latestMsg.content || '';
-
-      let messageText = '';
-      if (content.includes("Document:")) {
-        messageText = '📎 File';
-      } else if (content.includes("Image:")) {
-        messageText = '🖼️ Image';
-      } else if (content.includes("Voice:")) {
-        messageText = '🎵 Audio';
-      } else {
-        messageText = content;
-      }
-
-      const displayText = prefix + messageText;
-      return displayText.length > 20 ? displayText.substring(0, 20) + '...' : displayText;
-    }
-
-    return `${group.members.length} members`;
-  })()}
-</p> */}
 
                           <p
                             className="text-xs text-slate-500 truncate pr-2 max-w-[150px]"

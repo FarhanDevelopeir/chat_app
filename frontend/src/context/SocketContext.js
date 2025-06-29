@@ -296,40 +296,10 @@ export function SocketProvider({ children }) {
 
 
     // Updated handleReceiveMessage function
-    // const handleReceiveMessage = (message) => {
-    //   if (!message) return;
+    const handleReceiveMessage = (message) => {
+      if (!message) return;
 
-    //   setMessages(prevMessages => {
-    //     // Safety check
-    //     if (!prevMessages || !Array.isArray(prevMessages)) {
-    //       return [message];
-    //     }
 
-    //     const messageExists = prevMessages.some(m =>
-    //       (m._id && m._id === message._id) ||
-    //       (m.content === message.content &&
-    //         m.sender === message.sender &&
-    //         ((isGroupChat && m.groupId === message.groupId) ||
-    //           (!isGroupChat && m.receiver === message.receiver)) &&
-    //         Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 5000)
-    //     );
-
-    //     if (messageExists) return prevMessages;
-
-    //     // Filter based on chat type
-    //     if (isGroupChat) {
-    //       if (message.groupId !== selectedGroup) return prevMessages;
-    //     } else {
-    //       if (isAdmin && message.sender !== selectedUser?.username && message.receiver !== selectedUser?.username) {
-    //         return prevMessages;
-    //       }
-    //     }
-
-        const newMessages = [...prevMessages, message];
-        return removeDuplicateMessages(newMessages);
-      });
-
-     
       setLatestMessages(prev => {
         let chatId;
 
@@ -506,294 +476,294 @@ export function SocketProvider({ children }) {
           console.log('Notification sound error:', error);
         }
       }
-    };
+      };
 
-    // const handleMessageSent = (message) => {
-    //   setMessages(prevMessages => {
-    //     const index = prevMessages.findIndex(m =>
-    //     (m.content === message.content &&
-    //       m.sender === message.sender &&
-    //       ((isGroupChat && m.groupId === message.groupId) ||
-    //         (!isGroupChat && m.receiver === message.receiver)) &&
-    //       !m._id)
-    //     );
+      // const handleMessageSent = (message) => {
+      //   setMessages(prevMessages => {
+      //     const index = prevMessages.findIndex(m =>
+      //     (m.content === message.content &&
+      //       m.sender === message.sender &&
+      //       ((isGroupChat && m.groupId === message.groupId) ||
+      //         (!isGroupChat && m.receiver === message.receiver)) &&
+      //       !m._id)
+      //     );
 
-    //     if (index !== -1) {
-    //       const newMessages = [...prevMessages];
-    //       newMessages[index] = message;
-    //       return removeDuplicateMessages(newMessages);
-    //     }
+      //     if (index !== -1) {
+      //       const newMessages = [...prevMessages];
+      //       newMessages[index] = message;
+      //       return removeDuplicateMessages(newMessages);
+      //     }
 
-    //     const exists = prevMessages.some(m => m._id === message._id);
-    //     if (exists) return prevMessages;
+      //     const exists = prevMessages.some(m => m._id === message._id);
+      //     if (exists) return prevMessages;
 
-    //     return removeDuplicateMessages([...prevMessages, message]);
-    //   });
+      //     return removeDuplicateMessages([...prevMessages, message]);
+      //   });
 
-    //   // And in handleMessageSent:
-    //   setLatestMessages(prev => {
-    //     let chatId;
+      //   // And in handleMessageSent:
+      //   setLatestMessages(prev => {
+      //     let chatId;
 
-    //     if (message.groupId) {
-    //       chatId = message.groupId;
-    //     } else {
-    //       if (isAdmin) {
-    //         chatId = message.receiver;
-    //       } else {
-    //         // User side: ALWAYS use 'admin'
-    //         chatId = 'admin';
-    //       }
-    //     }
+      //     if (message.groupId) {
+      //       chatId = message.groupId;
+      //     } else {
+      //       if (isAdmin) {
+      //         chatId = message.receiver;
+      //       } else {
+      //         // User side: ALWAYS use 'admin'
+      //         chatId = 'admin';
+      //       }
+      //     }
 
-    //     return {
-    //       ...prev,
-    //       [chatId]: {
-    //         content: message.content,
-    //         sender: message.sender,
-    //         createdAt: message.createdAt,
-    //         isFile: !!message.file,
-    //         isAudio: !!message.audio
-    //       }
-    //     };
-    //   });
+      //     return {
+      //       ...prev,
+      //       [chatId]: {
+      //         content: message.content,
+      //         sender: message.sender,
+      //         createdAt: message.createdAt,
+      //         isFile: !!message.file,
+      //         isAudio: !!message.audio
+      //       }
+      //     };
+      //   });
 
-    //   // Show user side unread messages length
-    //   // Reset unread count when messages are loaded
-    //   if (isGroupChat) {
-    //     socketInstance.emit('user:updateUnreadCount', {
-    //       username,
-    //       chatId: selectedGroup,
-    //       reset: true
-    //     });
-    //   } else {
-    //     socketInstance.emit('user:updateUnreadCount', {
-    //       username,
-    //       chatId: 'admin',
-    //       reset: true
-    //     });
-    //   }
+      //   // Show user side unread messages length
+      //   // Reset unread count when messages are loaded
+      //   if (isGroupChat) {
+      //     socketInstance.emit('user:updateUnreadCount', {
+      //       username,
+      //       chatId: selectedGroup,
+      //       reset: true
+      //     });
+      //   } else {
+      //     socketInstance.emit('user:updateUnreadCount', {
+      //       username,
+      //       chatId: 'admin',
+      //       reset: true
+      //     });
+      //   }
 
-    // };
+      // };
 
-    const handleMessageSent = (message) => {
-      setMessages(prevMessages => {
-        const index = prevMessages.findIndex(m =>
-        (m.content === message.content &&
-          m.sender === message.sender &&
-          ((isGroupChat && m.groupId === message.groupId) ||
-            (!isGroupChat && m.receiver === message.receiver)) &&
-          !m._id)
-        );
-
-        if (index !== -1) {
-          const newMessages = [...prevMessages];
-          newMessages[index] = message;
-          return removeDuplicateMessages(newMessages);
-        }
-
-        const exists = prevMessages.some(m => m._id === message._id);
-        if (exists) return prevMessages;
-
-        return removeDuplicateMessages([...prevMessages, message]);
-      });
-
-      // Updated latest messages logic for subAdmin
-      setLatestMessages(prev => {
-        let chatId;
-
-        if (message.groupId) {
-          chatId = message.groupId;
-        } else {
-          if (isAdmin) {
-            chatId = message.receiver;
-          } else if (isSubAdmin) {
-            // SubAdmin side: use receiver as chatId
-            chatId = message.receiver;
-          } else {
-            // User side: Determine if chatting with admin or subAdmin
-            if (message.receiver === 'admin' || message.sender === 'admin') {
-              chatId = 'admin';
-            } else {
-              // For subAdmin conversations, use the subAdmin's username
-              chatId = message.receiver;
-            }
-          }
-        }
-
-        return {
-          ...prev,
-          [chatId]: {
-            content: message.content,
-            sender: message.sender,
-            createdAt: message.createdAt,
-            isFile: !!message.file,
-            isAudio: !!message.audio
-          }
-        };
-      });
-
-      // Reset unread count when messages are sent - Updated for subAdmin
-      if (isGroupChat) {
-        socketInstance.emit('user:updateUnreadCount', {
-          username,
-          chatId: selectedGroup,
-          reset: true
-        });
-      } else {
-        // if (isAdmin || isSubAdmin) {
-        //   // Admin or SubAdmin sending message
-        //   socketInstance.emit('user:updateUnreadCount', {
-        //     username,
-        //     chatId: message.receiver,
-        //     reset: true
-        //   });
-        // } else {
-        //   // User sending message - determine if to admin or subAdmin
-        //   if (message.receiver === 'admin') {
-        //     socketInstance.emit('user:updateUnreadCount', {
-        //       username,
-        //       chatId: 'admin',
-        //       reset: true
-        //     });
-        //   } else {
-        //     // Sending to subAdmin
-        //     socketInstance.emit('user:updateUnreadCount', {
-        //       username,
-        //       chatId: message.receiver,
-        //       reset: true
-        //     });
-        //   }
-        // }
-        if (message.sender === 'admin') {
-          socketInstance.emit('user:updateUnreadCount', {
-            username,
-            chatId: 'admin',
-            reset: true
-          });
-        } else {
-          // Sending to subAdmin
-          socketInstance.emit('user:updateUnreadCount', {
-            username,
-            chatId: message.sender,
-            reset: true
-          });
-        }
-      }
-    };
-
-
-    const handleReadStatusUpdate = (updatedMessages) => {
-      setMessages(prevMessages => {
-        return prevMessages.map(msg => {
-          const updatedMsg = updatedMessages.find(updated =>
-            updated._id === msg._id ||
-            (updated.content === msg.content &&
-              updated.sender === msg.sender &&
-              updated.receiver === msg.receiver &&
-              Math.abs(new Date(updated.createdAt) - new Date(msg.createdAt)) < 5000)
+      const handleMessageSent = (message) => {
+        setMessages(prevMessages => {
+          const index = prevMessages.findIndex(m =>
+          (m.content === message.content &&
+            m.sender === message.sender &&
+            ((isGroupChat && m.groupId === message.groupId) ||
+              (!isGroupChat && m.receiver === message.receiver)) &&
+            !m._id)
           );
 
-          if (updatedMsg) {
-            return { ...msg, isRead: true };
+          if (index !== -1) {
+            const newMessages = [...prevMessages];
+            newMessages[index] = message;
+            return removeDuplicateMessages(newMessages);
           }
-          return msg;
+
+          const exists = prevMessages.some(m => m._id === message._id);
+          if (exists) return prevMessages;
+
+          return removeDuplicateMessages([...prevMessages, message]);
         });
-      });
-    };
 
-    
-    const handleGroupReadStatusUpdate = (data) => {
-      const { groupId, readBy, updatedMessages } = data;
+        // Updated latest messages logic for subAdmin
+        setLatestMessages(prev => {
+          let chatId;
 
-      setMessages(prevMessages => {
-        // Safety check for prevMessages
-        if (!prevMessages || !Array.isArray(prevMessages)) {
-          return [];
+          if (message.groupId) {
+            chatId = message.groupId;
+          } else {
+            if (isAdmin) {
+              chatId = message.receiver;
+            } else if (isSubAdmin) {
+              // SubAdmin side: use receiver as chatId
+              chatId = message.receiver;
+            } else {
+              // User side: Determine if chatting with admin or subAdmin
+              if (message.receiver === 'admin' || message.sender === 'admin') {
+                chatId = 'admin';
+              } else {
+                // For subAdmin conversations, use the subAdmin's username
+                chatId = message.receiver;
+              }
+            }
+          }
+
+          return {
+            ...prev,
+            [chatId]: {
+              content: message.content,
+              sender: message.sender,
+              createdAt: message.createdAt,
+              isFile: !!message.file,
+              isAudio: !!message.audio
+            }
+          };
+        });
+
+        // Reset unread count when messages are sent - Updated for subAdmin
+        if (isGroupChat) {
+          socketInstance.emit('user:updateUnreadCount', {
+            username,
+            chatId: selectedGroup,
+            reset: true
+          });
+        } else {
+          // if (isAdmin || isSubAdmin) {
+          //   // Admin or SubAdmin sending message
+          //   socketInstance.emit('user:updateUnreadCount', {
+          //     username,
+          //     chatId: message.receiver,
+          //     reset: true
+          //   });
+          // } else {
+          //   // User sending message - determine if to admin or subAdmin
+          //   if (message.receiver === 'admin') {
+          //     socketInstance.emit('user:updateUnreadCount', {
+          //       username,
+          //       chatId: 'admin',
+          //       reset: true
+          //     });
+          //   } else {
+          //     // Sending to subAdmin
+          //     socketInstance.emit('user:updateUnreadCount', {
+          //       username,
+          //       chatId: message.receiver,
+          //       reset: true
+          //     });
+          //   }
+          // }
+          if (message.sender === 'admin') {
+            socketInstance.emit('user:updateUnreadCount', {
+              username,
+              chatId: 'admin',
+              reset: true
+            });
+          } else {
+            // Sending to subAdmin
+            socketInstance.emit('user:updateUnreadCount', {
+              username,
+              chatId: message.sender,
+              reset: true
+            });
+          }
         }
+      };
 
-        return prevMessages.map(msg => {
-          // Safety check for updatedMessages
-          if (updatedMessages && Array.isArray(updatedMessages)) {
+
+      const handleReadStatusUpdate = (updatedMessages) => {
+        setMessages(prevMessages => {
+          return prevMessages.map(msg => {
             const updatedMsg = updatedMessages.find(updated =>
-              (updated._id && msg._id && updated._id === msg._id) ||
+              updated._id === msg._id ||
               (updated.content === msg.content &&
                 updated.sender === msg.sender &&
-                updated.groupId === msg.groupId &&
+                updated.receiver === msg.receiver &&
                 Math.abs(new Date(updated.createdAt) - new Date(msg.createdAt)) < 5000)
             );
 
             if (updatedMsg) {
               return { ...msg, isRead: true };
             }
-          } else {
-            // Fallback: mark messages as read based on groupId and readBy
-            if (msg.groupId === groupId && msg.sender !== readBy) {
-              return { ...msg, isRead: true };
-            }
+            return msg;
+          });
+        });
+      };
+
+
+      const handleGroupReadStatusUpdate = (data) => {
+        const { groupId, readBy, updatedMessages } = data;
+
+        setMessages(prevMessages => {
+          // Safety check for prevMessages
+          if (!prevMessages || !Array.isArray(prevMessages)) {
+            return [];
           }
 
-          return msg;
-        });
-      });
-    };
+          return prevMessages.map(msg => {
+            // Safety check for updatedMessages
+            if (updatedMessages && Array.isArray(updatedMessages)) {
+              const updatedMsg = updatedMessages.find(updated =>
+                (updated._id && msg._id && updated._id === msg._id) ||
+                (updated.content === msg.content &&
+                  updated.sender === msg.sender &&
+                  updated.groupId === msg.groupId &&
+                  Math.abs(new Date(updated.createdAt) - new Date(msg.createdAt)) < 5000)
+              );
 
-    const handleEmojiReactionUpdate = (data) => {
-      const { messageId, reactions } = data;
-      setMessages(prevMessages =>
-        prevMessages.map(msg =>
-          msg._id === messageId
-            ? { ...msg, reactions: reactions }
-            : msg
-        )
-      );
-    };
-
-    const handleMessageDeleted = (data) => {
-      const { messageId, deletedBy, isAdmin } = data;
-      const deleteText = isAdmin
-        ? "This message was deleted by admin"
-        : `This message was deleted by ${deletedBy}`;
-
-      setMessages(prevMessages =>
-        prevMessages.map(msg =>
-          msg._id === messageId
-            ? {
-              ...msg,
-              content: deleteText,
-              isDeleted: true,
-              deletedBy: deletedBy,
-              file: undefined,
-              audio: undefined
+              if (updatedMsg) {
+                return { ...msg, isRead: true };
+              }
+            } else {
+              // Fallback: mark messages as read based on groupId and readBy
+              if (msg.groupId === groupId && msg.sender !== readBy) {
+                return { ...msg, isRead: true };
+              }
             }
-            : msg
-        )
-      );
-    };
 
-    // Set up listeners
-    socketInstance.on('messages:history', handleMessagesHistory);
-    socketInstance.on('message:receive', handleReceiveMessage);
-    socketInstance.on('message:sent', handleMessageSent);
-    socketInstance.on('group:messageReceive', handleReceiveMessage);
-    socketInstance.on('group:messageSent', handleMessageSent);
-    socketInstance.on('messages:readStatusUpdate', handleReadStatusUpdate);
-    socketInstance.on('group:readStatusUpdate', handleGroupReadStatusUpdate);
-    socketInstance.on('message:emojiReactionUpdate', handleEmojiReactionUpdate);
-    socketInstance.on('message:deleted', handleMessageDeleted);
+            return msg;
+          });
+        });
+      };
 
-    // Return cleanup function
-    return () => {
-      socketInstance.off('messages:history', handleMessagesHistory);
-      socketInstance.off('message:receive', handleReceiveMessage);
-      socketInstance.off('message:sent', handleMessageSent);
-      socketInstance.off('group:messageReceive', handleReceiveMessage);
-      socketInstance.off('group:messageSent', handleMessageSent);
-      socketInstance.off('messages:readStatusUpdate', handleReadStatusUpdate);
-      socketInstance.off('group:readStatusUpdate', handleGroupReadStatusUpdate);
-      socketInstance.off('message:emojiReactionUpdate', handleEmojiReactionUpdate);
-      socketInstance.off('message:deleted', handleMessageDeleted);
-    };
-  }, [removeDuplicateMessages]);
+      const handleEmojiReactionUpdate = (data) => {
+        const { messageId, reactions } = data;
+        setMessages(prevMessages =>
+          prevMessages.map(msg =>
+            msg._id === messageId
+              ? { ...msg, reactions: reactions }
+              : msg
+          )
+        );
+      };
+
+      const handleMessageDeleted = (data) => {
+        const { messageId, deletedBy, isAdmin } = data;
+        const deleteText = isAdmin
+          ? "This message was deleted by admin"
+          : `This message was deleted by ${deletedBy}`;
+
+        setMessages(prevMessages =>
+          prevMessages.map(msg =>
+            msg._id === messageId
+              ? {
+                ...msg,
+                content: deleteText,
+                isDeleted: true,
+                deletedBy: deletedBy,
+                file: undefined,
+                audio: undefined
+              }
+              : msg
+          )
+        );
+      };
+
+      // Set up listeners
+      socketInstance.on('messages:history', handleMessagesHistory);
+      socketInstance.on('message:receive', handleReceiveMessage);
+      socketInstance.on('message:sent', handleMessageSent);
+      socketInstance.on('group:messageReceive', handleReceiveMessage);
+      socketInstance.on('group:messageSent', handleMessageSent);
+      socketInstance.on('messages:readStatusUpdate', handleReadStatusUpdate);
+      socketInstance.on('group:readStatusUpdate', handleGroupReadStatusUpdate);
+      socketInstance.on('message:emojiReactionUpdate', handleEmojiReactionUpdate);
+      socketInstance.on('message:deleted', handleMessageDeleted);
+
+      // Return cleanup function
+      return () => {
+        socketInstance.off('messages:history', handleMessagesHistory);
+        socketInstance.off('message:receive', handleReceiveMessage);
+        socketInstance.off('message:sent', handleMessageSent);
+        socketInstance.off('group:messageReceive', handleReceiveMessage);
+        socketInstance.off('group:messageSent', handleMessageSent);
+        socketInstance.off('messages:readStatusUpdate', handleReadStatusUpdate);
+        socketInstance.off('group:readStatusUpdate', handleGroupReadStatusUpdate);
+        socketInstance.off('message:emojiReactionUpdate', handleEmojiReactionUpdate);
+        socketInstance.off('message:deleted', handleMessageDeleted);
+      };
+    }, [removeDuplicateMessages]);
 
 
   // New function to load more messages
@@ -812,15 +782,7 @@ export function SocketProvider({ children }) {
     socket.emit('messages:loadMore', {
       page: nextPage,
       limit: MESSAGES_PER_PAGE,
-      // Add these based on current context:
-      // For regular user-admin chat:
-      // sender: username,
-      // receiver: 'admin',
-      // For admin selecting user:
-      // sender: selectedUser?.username,
-      // receiver: 'admin',
-      // For group chat:
-      // groupId: selectedGroup
+      
     });
   }, [socket, connected, loadingMoreMessages, hasMoreMessages, currentPage]);
 
@@ -1095,39 +1057,6 @@ export function SocketProvider({ children }) {
     };
   }, [requestNotificationPermission]);
 
-
-
-  // 3. Add this NEW useEffect after your existing ones:
-  // useEffect(() => {
-  //   if (socket) {
-  //     // Listen for latest message updates
-  //     socket.on('admin:latestMessageUpdate', (messageUpdates) => {
-  //       setLatestMessages(prev => ({
-  //         ...prev,
-  //         ...messageUpdates
-  //       }));
-  //     });
-
-  //     // Request latest messages when component mounts
-
-  //     socket.emit('admin:getLatestMessages', { username: "admin" });
-
-
-  //     // socket.emit('user:getLatestMessages', { username });
-
-
-
-  //     // Listen for initial latest messages
-  //     socket.on('admin:latestMessages', (messages) => {
-  //       setLatestMessages(messages);
-  //     });
-
-  //     return () => {
-  //       socket.off('admin:latestMessageUpdate');
-  //       socket.off('admin:latestMessages');
-  //     };
-  //   }
-  // }, [socket]);
 
 
   useEffect(() => {

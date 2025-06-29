@@ -159,6 +159,14 @@ export default function ChatInterface({
         groupId: selectedGroup,
         pinnedBy: username
       });
+    } else if (chatType === 'subadmin' || isSubAdmin) {
+      // Handle subadmin-user chat pinning
+      socket.emit('subadmin:pinMessage', {
+        messageId,
+        sender: username,
+        receiver: chatType === 'subadmin' ? selectedUser : selectedUser?.username,
+        pinnedBy: username
+      });
     } else {
       socket.emit('message:pin', {
         messageId,
@@ -174,6 +182,14 @@ export default function ChatInterface({
       socket.emit('group:unpinMessage', {
         messageId,
         groupId: selectedGroup,
+        unpinnedBy: username
+      });
+    } else if (chatType === 'subadmin' || isSubAdmin) {
+      // Handle subadmin-user chat unpinning
+      socket.emit('subadmin:unpinMessage', {
+        messageId,
+        sender: username,
+        receiver: chatType === 'subadmin' ? selectedUser : selectedUser?.username,
         unpinnedBy: username
       });
     } else {
@@ -224,12 +240,16 @@ export default function ChatInterface({
     socket.on('message:unpinned', handleMessageUnpinned);
     socket.on('group:messagePinned', handleMessagePinned);
     socket.on('group:messageUnpinned', handleMessageUnpinned);
+    socket.on('subadmin:messagePinned', handleMessagePinned);
+    socket.on('subadmin:messageUnpinned', handleMessageUnpinned);
 
     return () => {
       socket.off('message:pinned', handleMessagePinned);
       socket.off('message:unpinned', handleMessageUnpinned);
       socket.off('group:messagePinned', handleMessagePinned);
       socket.off('group:messageUnpinned', handleMessageUnpinned);
+      socket.off('subadmin:messagePinned', handleMessagePinned);
+      socket.off('subadmin:messageUnpinned', handleMessageUnpinned);
     };
   }, [socket]);
 
@@ -241,6 +261,12 @@ export default function ChatInterface({
 
     if (isGroupChat && selectedGroup) {
       socket.emit('group:getPinnedMessage', { groupId: selectedGroup });
+    } else if (chatType === 'subadmin' || isSubAdmin) {
+      // Handle subadmin-user chat
+      socket.emit('subadmin:getPinnedMessage', {
+        sender: username,
+        receiver: chatType === 'subadmin' ? selectedUser : selectedUser?.username
+      });
     } else if (!isGroupChat && (selectedUser || !isAdmin)) {
       socket.emit('message:getPinnedMessage', {
         sender: username,

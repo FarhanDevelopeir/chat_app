@@ -107,9 +107,7 @@ export default function UserLogin({ onSuccess }) {
           />
         </div>
         <CardTitle className="text-2xl font-bold text-center">Welcome to WinChat</CardTitle>
-        {/* <CardDescription className="text-center">
-          Enter your credentials to start chatting
-        </CardDescription> */}
+       
       </CardHeader>
       <CardContent className="space-y-4">
         {error && (

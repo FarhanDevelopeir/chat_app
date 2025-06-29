@@ -241,16 +241,7 @@ export default function UserChatPage() {
     return <ChatLoader />;
   }
 
-  // const handleChatSelect = (type = 'admin', groupId = null) => {
-  //   if (type === 'admin') {
-  //     setSelectedChat('admin');
-  //     setChatType('user');
-  //   } else if (type === 'group' && groupId) {
-  //     setSelectedChat(groupId);
-  //     setChatType('group');
-  //   }
-  //   setShowChat(true);
-  // };
+  
 
   const handleChatSelect = (type = 'admin', groupId = null, subAdmin = null) => {
     if (type === 'admin') {
