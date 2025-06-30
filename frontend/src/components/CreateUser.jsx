@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import {
@@ -13,7 +11,9 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import {
-    Copy
+    Copy,
+    X,
+    Plus
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -31,32 +31,54 @@ const CreateUser = ({
     isEditMode = false,
     userToEdit = null,
     setIsEditMode = false,
-    setUserToEdit = null
-    // handleCopyPassword
+    setUserToEdit = null,
+    users = [] // Add users prop for user selection
 }) => {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubAdmin, setIsSubAdmin] = useState(false);
-
+    const [selectedUsers, setSelectedUsers] = useState([]);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     console.log('userToEdit', userToEdit)
-
-
 
     // Generate password on dialog open (only for create mode)
     useEffect(() => {
         if (dialogOpen) {
             if (isEditMode && userToEdit) {
                 setNewUsername(userToEdit.username);
-                setIsSubAdmin(userToEdit.isSubAdmin || false); // default false
+                setIsSubAdmin(userToEdit.isSubAdmin || false);
+
+                // If editing a sub admin, load their assigned users
+                if (userToEdit.isSubAdmin && userToEdit.assignedUsers) {
+                    const assignedUserObjects = users.filter(user =>
+                        userToEdit.assignedUsers.includes(user.username) ||
+                        userToEdit.assignedUsers.includes(user._id)
+                    );
+                    setSelectedUsers(assignedUserObjects);
+                }
             } else {
                 handleGeneratePassword();
                 setNewUsername('');
                 setIsSubAdmin(false);
+                setSelectedUsers([]);
             }
         }
-    }, [dialogOpen, isEditMode, userToEdit]);
+    }, [dialogOpen, isEditMode, userToEdit, users]);
 
+    // Reset selected users when isSubAdmin is unchecked
+    useEffect(() => {
+        if (!isSubAdmin) {
+            setSelectedUsers([]);
+        }
+    }, [isSubAdmin]);
+
+    // Filter available users (exclude sub admins and already selected users)
+    const availableUsers = users?.filter(
+        user =>
+            !user.isSubAdmin && // Exclude sub admins
+            !selectedUsers.some(selected => selected.username === user.username)
+    );
 
     const generateStrongPassword = () => {
         const length = 12;
@@ -81,6 +103,17 @@ const CreateUser = ({
         });
     };
 
+    const handleUserSelect = (user) => {
+        setSelectedUsers(prev => [...prev, user]);
+        setIsDropdownOpen(false);
+    };
+
+    const handleUserRemove = (userToRemove) => {
+        setSelectedUsers(prev =>
+            prev.filter(user => user.username !== userToRemove.username)
+        );
+    };
+
     const handleCreateUser = async () => {
         console.log(isEditMode ? "update user clicked" : "create user clicked");
 
@@ -90,6 +123,16 @@ const CreateUser = ({
                 description: isEditMode
                     ? "Username is required"
                     : "Username and password are required",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        // Validate sub admin has selected users
+        if (isSubAdmin && selectedUsers.length === 0) {
+            toast({
+                title: "Error",
+                description: "Sub admin must have at least one assigned user",
                 variant: "destructive"
             });
             return;
@@ -113,8 +156,12 @@ const CreateUser = ({
                     updateData.password = newPassword;
                 }
 
-                console.log("updateData", updateData);
+                // Include assigned users if sub admin
+                if (isSubAdmin) {
+                    updateData.assignedUsers = selectedUsers.map(user => user.username);
+                }
 
+                console.log("updateData", updateData);
 
                 socket.emit('admin:updateUser', updateData);
 
@@ -125,11 +172,7 @@ const CreateUser = ({
                             title: "Success",
                             description: `User ${newUsername} updated successfully`
                         });
-                        setIsEditMode(false);
-                        setUserToEdit(null);
-                        setNewUsername('');
-                        setNewPassword('');
-                        setIsSubAdmin(false);
+                        resetForm();
                         setDialogOpen(false);
                     } else {
                         toast({
@@ -142,7 +185,18 @@ const CreateUser = ({
                 });
             } else {
                 // Emit event to create a new user
-                socket.emit('admin:createUser', { username: newUsername, password: newPassword, isSubAdmin });
+                const createData = {
+                    username: newUsername,
+                    password: newPassword,
+                    isSubAdmin
+                };
+
+                // Include assigned users if sub admin
+                if (isSubAdmin) {
+                    createData.assignedUsers = selectedUsers.map(user => user.username);
+                }
+
+                socket.emit('admin:createUser', createData);
 
                 // Listen for the response
                 socket.once('admin:userCreated', (response) => {
@@ -151,9 +205,7 @@ const CreateUser = ({
                             title: "Success",
                             description: `User ${newUsername} created successfully`
                         });
-                        setNewUsername('');
-                        setNewPassword('');
-                        setIsSubAdmin(false);
+                        resetForm();
                         setDialogOpen(false);
                     } else {
                         toast({
@@ -175,13 +227,20 @@ const CreateUser = ({
         }
     };
 
-    const handleDialogClose = () => {
+    const resetForm = () => {
         if (isEditMode) {
             setIsEditMode(false);
             setUserToEdit(null);
         }
         setNewUsername('');
         setNewPassword('');
+        setIsSubAdmin(false);
+        setSelectedUsers([]);
+        setIsDropdownOpen(false);
+    };
+
+    const handleDialogClose = () => {
+        resetForm();
         setDialogOpen(false);
     };
 
@@ -210,7 +269,6 @@ const CreateUser = ({
 
                 <div className="space-y-2">
                     <Label htmlFor="password">
-                        {/* Password {isEditMode && <span className="text-sm text-gray-500">(optional)</span>} */}
                         Password
                     </Label>
                     <div className="flex space-x-2">
@@ -239,6 +297,7 @@ const CreateUser = ({
                         </Button>
                     </div>
                 </div>
+
                 <div className="flex items-center space-x-2 pt-2">
                     <input
                         id="isSubAdmin"
@@ -249,6 +308,81 @@ const CreateUser = ({
                     />
                     <Label htmlFor="isSubAdmin">Is Sub Admin</Label>
                 </div>
+
+                {/* User Selection Section - Only show when isSubAdmin is checked */}
+                {isSubAdmin && (
+                    <div className="space-y-3 pt-2 border-t">
+                        <Label className="text-sm font-medium">Assign Users to Sub Admin</Label>
+
+                        {/* Selected Users Display */}
+                        {selectedUsers.length > 0 && (
+                            <div>
+                                <Label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Selected Users ({selectedUsers.length})
+                                </Label>
+                                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                                    {selectedUsers.map((user) => (
+                                        <div
+                                            key={user.username}
+                                            className="flex items-center bg-[#e3f2fd] text-[#1976d2] px-2 py-1 rounded-full text-sm"
+                                        >
+                                            <span>{user.username}</span>
+                                            <button
+                                                onClick={() => handleUserRemove(user)}
+                                                className="ml-1 text-[#1976d2] hover:text-red-500 transition-colors"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* User Selection Dropdown */}
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-left focus:outline-none focus:ring-2 focus:ring-[#00a884] focus:border-transparent flex items-center justify-between text-sm"
+                                disabled={availableUsers?.length === 0}
+                            >
+                                <span className={availableUsers?.length === 0 ? 'text-gray-400' : 'text-gray-700'}>
+                                    {availableUsers?.length === 0 ? 'No more users available' : 'Select users to assign'}
+                                </span>
+                                <Plus className="h-4 w-4 text-gray-400" />
+                            </button>
+
+                            {isDropdownOpen && availableUsers?.length > 0 && (
+                                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                                    {availableUsers?.map((user) => (
+                                        <button
+                                            key={user.username}
+                                            onClick={() => handleUserSelect(user)}
+                                            className="w-full px-3 py-2 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none flex items-center gap-2"
+                                        >
+                                            <div className="w-8 h-8 rounded-full bg-[#00a884] flex items-center justify-center text-white font-medium text-sm">
+                                                {user.username.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <div className="font-medium text-sm">{user.username}</div>
+                                                <div className="text-xs text-gray-500">
+                                                    {user.isOnline ? 'Online' : 'Offline'}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Info Text */}
+                        <div className="text-xs text-gray-500">
+                            <p>• Sub admin will only be able to see and manage assigned users</p>
+                            <p>• At least one user must be assigned to create a sub admin</p>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <DialogFooter>

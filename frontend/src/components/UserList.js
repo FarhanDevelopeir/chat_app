@@ -24,6 +24,13 @@ import {
   DialogFooter,
   DialogDescription
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreVertical, Pin, PinOff } from 'lucide-react';
 import { toast } from "sonner";
 import CreateUser from './CreateUser';
 import {
@@ -65,11 +72,21 @@ export default function UsersList({
   const [matchingIPs, setMatchingIPs] = useState([]);
   const { latestMessages, setLatestMessages, formatMessageForDisplay } = useSocket();
   const currentUserRef = useRef(currentUser);
+  const [pinnedChats, setPinnedChats] = useState([]);
 
 
   useEffect(() => {
     currentUserRef.current = currentUser;
   }, [currentUser]);
+
+  useEffect(() => {
+    if (socket && currentUser) {
+      socket.emit('chat:getPinnedChats', {
+        userType,
+        currentUsername: currentUser?.username
+      });
+    }
+  }, [socket, currentUser, userType]);
 
   // Check if viewing on mobile
   useEffect(() => {
@@ -88,58 +105,6 @@ export default function UsersList({
       window.removeEventListener('resize', checkIfMobile);
     };
   }, []);
-
-  // useEffect(() => {
-  //   if (socket) {
-  //     // Request unread counts for all users
-  //     socket.emit('admin:getUnreadCounts');
-
-  //     // Listen for unread counts updates
-  //     socket.on('admin:unreadCounts', (counts) => {
-  //       setUnreadCounts(counts);
-  //     });
-
-  //     // Listen for real-time unread count updates
-  //     socket.on('admin:unreadCountUpdate', ({ username, count }) => {
-  //       setUnreadCounts(prev => ({
-  //         ...prev,
-  //         [username]: count
-  //       }));
-  //     });
-
-
-  //     // Listen for latest message updates - FIXED event names
-  //     socket.on('admin:latestMessages', (messages) => {
-  //       console.log('Received latest messages:', messages);
-  //       console.log('Admin message structure:', messages['admin']); // Debug line
-
-  //       setLatestMessages(messages);
-  //     });
-
-
-
-  //     // Listen for individual latest message updates
-  //     socket.on('admin:latestMessageUpdate', (data) => {
-  //       console.log('Received latest message update:', data);
-  //       console.log('Admin message update structure:', data['admin']);
-  //       setLatestMessages(prev => ({
-  //         ...prev,
-  //         ...data
-  //       }));
-  //     });
-
-
-  //     socket.emit('user:getLatestMessages', { username: 'admin' });
-
-  //     // Clean up listeners
-  //     return () => {
-  //       socket.off('admin:unreadCounts');
-  //       socket.off('admin:unreadCountUpdate');
-  //       socket.off('admin:latestMessages');
-  //       socket.off('admin:latestMessageUpdate');
-  //     };
-  //   }
-  // }, [latestMessages]);
 
   useEffect(() => {
     if (socket) {
@@ -193,14 +158,18 @@ export default function UsersList({
         }));
       });
 
-      // if (userType === 'admin') {
-      //   socket.emit('admin:getUnreadCounts');
-      //   socket.emit('user:getLatestMessages', { username: 'admin' });
-      // }
-      // else if (userType === 'subadmin') {
-      //   socket.emit('subadmin:getUnreadCounts', { username:  currentUserRef.current?.username  });
-      //   socket.emit('user:getLatestMessages', { username:  currentUserRef.current?.username  });
-      // }
+      const handlePinnedChats = (data) => {
+        setPinnedChats(data.pinnedChats || []);
+      };
+
+      const handleChatPinToggled = (data) => {
+        setPinnedChats(data.pinnedChats || []);
+      };
+
+      socket.on('admin:pinnedChats', handlePinnedChats);
+      socket.on('subadmin:pinnedChats', handlePinnedChats);
+      socket.on('admin:chatPinToggled', handleChatPinToggled);
+      socket.on('subadmin:chatPinToggled', handleChatPinToggled);
 
       // Clean up listeners
       return () => {
@@ -212,6 +181,10 @@ export default function UsersList({
         socket.off('subadmin:latestMessages');
         socket.off('admin:latestMessageUpdate');
         socket.off('subadmin:latestMessageUpdate');
+        socket.off('admin:pinnedChats', handlePinnedChats);
+        socket.off('subadmin:pinnedChats', handlePinnedChats);
+        socket.off('admin:chatPinToggled', handleChatPinToggled);
+        socket.off('subadmin:chatPinToggled', handleChatPinToggled);
       };
     }
   }, [latestMessages]);
@@ -230,30 +203,75 @@ export default function UsersList({
 
   }, [socket, userType]);
 
-
-  // useEffect(() => {
-  //   if (selectedUser && socket) {
-  //     setTimeout(() => {
-  //       if (userType === 'admin') {
-  //         socket.emit('admin:getUnreadCounts');
-  //       } else if (userType === 'subadmin') {
-  //         socket.emit('subadmin:getUnreadCounts', { username: currentUser.username });
-  //       }
-  //     }, 100);
-  //   }
-  // }, [socket]);
-
   // Sort users by most recent message and apply filters
+  // useEffect(() => {
+  //   // Merge users with unread counts
+  //   const usersWithUnread = users.map(user => ({
+  //     ...user,
+  //     unreadCount: unreadCounts[user.username] || 0
+  //   }));
+
+  //   // First sort users by recent activity (newest message or online status first)
+  //   const sorted = [...usersWithUnread].sort((a, b) => {
+  //     // If a user has unread messages, they go to the top
+  //     if (a.unreadCount > 0 && b.unreadCount === 0) return -1;
+  //     if (a.unreadCount === 0 && b.unreadCount > 0) return 1;
+
+  //     // If both have unread messages, sort by unread count (highest first)
+  //     if (a.unreadCount > 0 && b.unreadCount > 0) {
+  //       return b.unreadCount - a.unreadCount;
+  //     }
+
+  //     // If both have unread messages, sort by timestamp (if available)
+  //     if (a.lastMessageTime && b.lastMessageTime) {
+  //       return new Date(b.lastMessageTime) - new Date(a.lastMessageTime);
+  //     }
+
+  //     // If only one has a last message timestamp
+  //     if (a.lastMessageTime && !b.lastMessageTime) return -1;
+  //     if (!a.lastMessageTime && b.lastMessageTime) return 1;
+
+  //     // Then by online status
+  //     if (a.isOnline && !b.isOnline) return -1;
+  //     if (!a.isOnline && b.isOnline) return 1;
+
+  //     // Finally by last seen
+  //     if (a.lastSeen && b.lastSeen) {
+  //       return new Date(b.lastSeen) - new Date(a.lastSeen);
+  //     }
+
+  //     return 0;
+  //   });
+
+  //   // Apply search filter
+  //   let filtered = sorted.filter(user =>
+  //     user.username.toLowerCase().includes(searchTerm.toLowerCase())
+  //   );
+
+  //   // Apply unread filter if selected
+  //   if (filter === 'unread') {
+  //     filtered = filtered.filter(user => user.unreadCount > 0);
+  //   }
+
+  //   setSortedUsers(filtered);
+  // }, [users, unreadCounts, searchTerm, filter]);
+
   useEffect(() => {
-    // Merge users with unread counts
+    // Merge users with unread counts and pin status
     const usersWithUnread = users.map(user => ({
       ...user,
-      unreadCount: unreadCounts[user.username] || 0
+      unreadCount: unreadCounts[user.username] || 0,
+      isPinned: pinnedChats.includes(user.username)
     }));
 
-    // First sort users by recent activity (newest message or online status first)
+    // Sort users with pinned chats at the top
     const sorted = [...usersWithUnread].sort((a, b) => {
-      // If a user has unread messages, they go to the top
+      // Pinned chats always come first
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+
+      // If both are pinned or both are not pinned, apply existing sorting logic
+      // If a user has unread messages, they go to the top (within their pin group)
       if (a.unreadCount > 0 && b.unreadCount === 0) return -1;
       if (a.unreadCount === 0 && b.unreadCount > 0) return 1;
 
@@ -294,7 +312,7 @@ export default function UsersList({
     }
 
     setSortedUsers(filtered);
-  }, [users, unreadCounts, searchTerm, filter]);
+  }, [users, unreadCounts, searchTerm, filter, pinnedChats]);
 
   useEffect(() => {
     if (users && users.length > 0) {
@@ -339,6 +357,18 @@ export default function UsersList({
     if (diffDays < 7) return `${diffDays} days ago`;
 
     return lastSeen.toLocaleDateString();
+  };
+
+  const handleTogglePin = (username, event) => {
+    event.stopPropagation(); // Prevent user selection when clicking pin
+
+    if (socket) {
+      socket.emit('chat:togglePin', {
+        targetUsername: username,
+        userType,
+        currentUsername: currentUser?.username
+      });
+    }
   };
 
   const handleSelectUser = (user) => {
@@ -651,10 +681,10 @@ export default function UsersList({
                 <div
                   key={user.username}
                   className={`p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors relative ${selectedUser?.username === user.username ? 'bg-slate-100' : ''
-                    } ${user.unreadCount > 0 ? 'bg-green-50 border-l-4 border-l-green-500' : ''}`}
+                    } ${user.unreadCount > 0 ? 'bg-green-50 border-l-4 border-l-green-500' : ''} ${user?.isPinned ? 'border-l-4 border-l-blue-500' : ''
+                    }`}
                   onClick={() => handleSelectUser(user)}
                 >
-                  {/* Existing user item content remains the same */}
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <Avatar className="h-10 w-10 md:h-12 md:w-12 bg-slate-200">
@@ -673,30 +703,66 @@ export default function UsersList({
 
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline">
-                        <p className={`text-sm font-medium truncate ${user.unreadCount > 0 ? 'text-slate-900 font-semibold' : 'text-slate-900'
-                          }`}>
-                          {user.username}
-                        </p>
-
-                        <div className="relative flex flex-col items-end">
-                          {user.unreadCount > 0 && (
-                            <Badge
-                              variant="default"
-                              className="absolute -top-2 right-0 bg-green-600 hover:bg-green-600 text-white min-w-[20px] h-5 px-2 text-xs font-semibold rounded-full flex items-center justify-center"
-                            >
-                              {user.unreadCount > 99 ? '99+' : user.unreadCount}
-                            </Badge>
+                        <div className="flex items-center gap-2">
+                          <p className={`text-sm font-medium truncate ${user.unreadCount > 0 ? 'text-slate-900 font-semibold' : 'text-slate-900'
+                            }`}>
+                            {user.username}
+                          </p>
+                          {user?.isPinned && (
+                            <Pin className="h-3 w-3 text-blue-500 fill-blue-500" />
                           )}
+                        </div>
 
-                          <span className="text-xs text-slate-500 absolute top-4 right-0 whitespace-nowrap">
-                            {user.lastMessageTime
-                              ? new Date(user.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                              : user.isOnline
-                                ? 'Now'
-                                : formatLastSeen(user.lastSeen)}
-                          </span>
+                        <div className="relative flex items-center gap-2">
+                          {/* Dropdown Menu */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-slate-200">
+                                <MoreVertical className="h-3 w-3" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-32">
+                              <DropdownMenuItem
+                                onClick={(e) => handleTogglePin(user.username, e)}
+                                className="cursor-pointer"
+                              >
+                                {user?.isPinned ? (
+                                  <>
+                                    <PinOff className="h-4 w-4 mr-2" />
+                                    Unpin
+                                  </>
+                                ) : (
+                                  <>
+                                    <Pin className="h-4 w-4 mr-2" />
+                                    Pin
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+
+                          <div className="flex flex-col items-end">
+                            {user.unreadCount > 0 && (
+                              <Badge
+                                variant="default"
+                                className="bg-green-600 hover:bg-green-600 text-white min-w-[20px] h-5 px-2 text-xs font-semibold rounded-full flex items-center justify-center"
+                              >
+                                {user.unreadCount > 99 ? '99+' : user.unreadCount}
+                              </Badge>
+                            )}
+
+                            <span className="text-xs text-slate-500 whitespace-nowrap mt-1">
+                              {user.lastMessageTime
+                                ? new Date(user.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                : user.isOnline
+                                  ? 'Now'
+                                  : formatLastSeen(user.lastSeen)}
+                            </span>
+                          </div>
                         </div>
                       </div>
+
+                      {/* Rest of your existing message preview code remains the same */}
                       <p
                         title={(() => {
                           const latestMsg = latestMessages['admin'] || latestMessages[user.username];
@@ -745,7 +811,6 @@ export default function UsersList({
                           return `Last seen: ${formatLastSeen(user.lastSeen)}`;
                         })()}
                       </p>
-
                     </div>
                   </div>
                 </div>
@@ -765,6 +830,8 @@ export default function UsersList({
           setNewUsername={setNewUsername}
           newPassword={newPassword}
           setNewPassword={setNewPassword}
+          users={users}
+
         />
       </Dialog>}
     </div>
