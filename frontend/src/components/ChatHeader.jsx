@@ -30,8 +30,6 @@ export default function ChatHeader({
 }) {
 
 
-  console.log('chat type in header', chatType)
-
 
   const isGroupChat = chatType === 'group';
 
