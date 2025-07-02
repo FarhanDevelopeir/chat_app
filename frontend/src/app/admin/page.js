@@ -371,6 +371,7 @@ export default function AdminChatPage() {
             onBackClick={isMobile ? handleBackClick : null}
             userType={userType}
             currentUser={currentUser}
+            isBroadcast={selectedUser?.isBroadcast || false}
           />
         </div>
       </div>
