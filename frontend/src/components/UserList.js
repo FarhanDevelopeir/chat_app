@@ -73,6 +73,64 @@ export default function UsersList({
   const { latestMessages, setLatestMessages, formatMessageForDisplay } = useSocket();
   const currentUserRef = useRef(currentUser);
   const [pinnedChats, setPinnedChats] = useState([]);
+   // Add these state variables at the top of UsersList component
+  const [announcementDialog, setAnnouncementDialog] = useState(false);
+  const [announcementText, setAnnouncementText] = useState('');
+  const [announcements, setAnnouncements] = useState([]);
+  const [manageAnnouncementsDialog, setManageAnnouncementsDialog] = useState(false);
+
+  // Add these useEffect listeners
+  useEffect(() => {
+    if (socket) {
+      // Listen for announcements updates
+      socket.on('announcements:list', (announcementsList) => {
+        setAnnouncements(announcementsList);
+      });
+
+      socket.on('announcement:created', (announcement) => {
+        setAnnouncements(prev => [announcement, ...prev]);
+        toast.success('Announcement created successfully!');
+      });
+
+      socket.on('announcement:deleted', (deletedId) => {
+        setAnnouncements(prev => prev.filter(ann => ann._id !== deletedId));
+        toast.success('Announcement deleted successfully!');
+      });
+
+      // Request initial announcements
+      socket.emit('announcements:fetch', { userType });
+
+      return () => {
+        socket.off('announcements:list');
+        socket.off('announcement:created');
+        socket.off('announcement:deleted');
+      };
+    }
+  }, [socket, userType]);
+
+  // Add these handler functions
+  const handleCreateAnnouncement = () => {
+    if (!announcementText.trim()) {
+      toast.error('Please enter announcement text');
+      return;
+    }
+
+    socket.emit('announcement:create', {
+      text: announcementText,
+      createdBy: currentUser?.username,
+      userType
+    });
+
+    setAnnouncementText('');
+    setAnnouncementDialog(false);
+  };
+
+  const handleDeleteAnnouncement = (announcementId) => {
+    socket.emit('announcement:delete', {
+      announcementId,
+      userType
+    });
+  };
 
 
   useEffect(() => {
@@ -343,72 +401,186 @@ export default function UsersList({
   };
 
   // Mobile menu component
-  const MobileMenu = () => (
-    <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden relative">
-          <Menu className="h-5 w-5" />
-          {totalUnreadMessages > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center bg-red-500 hover:bg-red-500"
-            >
-              {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
-            </Badge>
-          )}
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="w-[240px] p-0">
-        <div className="p-4 bg-[#00a884] text-white">
-          <div className="flex justify-between items-center mb-2">
-            <SheetTitle className="font-medium">Admin Panel</SheetTitle>
-            <SheetClose asChild>
-              <Button variant="ghost" size="icon" className="text-white hover:bg-[#009874]">
-                <X className="h-5 w-5" />
-              </Button>
-            </SheetClose>
-          </div>
+  // const MobileMenu = () => (
+  //   <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+  //     <SheetTrigger asChild>
+  //       <Button variant="ghost" size="icon" className="md:hidden relative">
+  //         <Menu className="h-5 w-5" />
+  //         {totalUnreadMessages > 0 && (
+  //           <Badge
+  //             variant="destructive"
+  //             className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center bg-red-500 hover:bg-red-500"
+  //           >
+  //             {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
+  //           </Badge>
+  //         )}
+  //       </Button>
+  //     </SheetTrigger>
+  //     <SheetContent side="left" className="w-[240px] p-0">
+  //       <div className="p-4 bg-[#00a884] text-white">
+  //         <div className="flex justify-between items-center mb-2">
+  //           <SheetTitle className="font-medium">Admin Panel</SheetTitle>
+  //           <SheetClose asChild>
+  //             <Button variant="ghost" size="icon" className="text-white hover:bg-[#009874]">
+  //               <X className="h-5 w-5" />
+  //             </Button>
+  //           </SheetClose>
+  //         </div>
+  //       </div>
+  //       <div className="px-4 py-2">
+  //         <div className="flex flex-col space-y-2">
+  //           <SheetClose asChild>
+  //             <Button
+  //               variant="ghost"
+  //               className="justify-start"
+  //               onClick={() => setFilter('all')}
+  //             >
+  //               All Users
+  //             </Button>
+  //           </SheetClose>
+  //           <SheetClose asChild>
+  //             <Button
+  //               variant="ghost"
+  //               className="justify-start"
+  //               onClick={() => setFilter('unread')}
+  //             >
+  //               Unread Messages
+  //               {totalUnreadMessages > 0 && (
+  //                 <Badge variant="outline" className="ml-2 bg-[#00a884] text-white border-none">
+  //                   {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
+  //                 </Badge>
+  //               )}
+  //             </Button>
+  //           </SheetClose>
+  //           <SheetClose asChild>
+  //             <Button
+  //               variant="ghost"
+  //               className="justify-start"
+  //               onClick={() => setFilter('ips')}
+  //             >
+  //               User IPs
+  //               {matchingIPs.length > 0 && (
+  //                 <Badge variant="outline" className="ml-2 bg-red-500 text-white border-none">
+  //                   {matchingIPs.length}
+  //                 </Badge>
+  //               )}
+  //             </Button>
+  //           </SheetClose>
+  //           {userType === 'admin' && <SheetClose asChild>
+  //             <Button
+  //               variant="ghost"
+  //               className="justify-start"
+  //               onClick={() => setDialogOpen(true)}
+  //             >
+  //               <UserPlus className="h-4 w-4 mr-2" /> Add New User
+  //             </Button>
+  //           </SheetClose>}
+  //           <div className="border-t border-gray-200 my-2"></div>
+  //           <Button
+  //             variant="ghost"
+  //             className="justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
+  //             onClick={handleLogout}
+  //           >
+  //             <LogOut className="h-4 w-4 mr-2" /> Logout
+  //           </Button>
+  //         </div>
+  //       </div>
+  //     </SheetContent>
+  //   </Sheet>
+  // );
+
+  // Update the MobileMenu component in UsersList to include announcement buttons
+const MobileMenu = () => (
+  <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+    <SheetTrigger asChild>
+      <Button variant="ghost" size="icon" className="md:hidden relative">
+        <Menu className="h-5 w-5" />
+        {totalUnreadMessages > 0 && (
+          <Badge
+            variant="destructive"
+            className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center bg-red-500 hover:bg-red-500"
+          >
+            {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
+          </Badge>
+        )}
+      </Button>
+    </SheetTrigger>
+    <SheetContent side="left" className="w-[240px] p-0">
+      <div className="p-4 bg-[#00a884] text-white">
+        <div className="flex justify-between items-center mb-2">
+          <SheetTitle className="font-medium">Admin Panel</SheetTitle>
+          <SheetClose asChild>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-[#009874]">
+              <X className="h-5 w-5" />
+            </Button>
+          </SheetClose>
         </div>
-        <div className="px-4 py-2">
-          <div className="flex flex-col space-y-2">
+      </div>
+      <div className="px-4 py-2">
+        <div className="flex flex-col space-y-2">
+          {/* Existing menu items */}
+          <SheetClose asChild>
+            <Button
+              variant="ghost"
+              className="justify-start"
+              onClick={() => setFilter('all')}
+            >
+              All Users
+            </Button>
+          </SheetClose>
+          <SheetClose asChild>
+            <Button
+              variant="ghost"
+              className="justify-start"
+              onClick={() => setFilter('unread')}
+            >
+              Unread Messages
+              {totalUnreadMessages > 0 && (
+                <Badge variant="outline" className="ml-2 bg-[#00a884] text-white border-none">
+                  {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
+                </Badge>
+              )}
+            </Button>
+          </SheetClose>
+          <SheetClose asChild>
+            <Button
+              variant="ghost"
+              className="justify-start"
+              onClick={() => setFilter('ips')}
+            >
+              User IPs
+              {matchingIPs.length > 0 && (
+                <Badge variant="outline" className="ml-2 bg-red-500 text-white border-none">
+                  {matchingIPs.length}
+                </Badge>
+              )}
+            </Button>
+          </SheetClose>
+          
+          {/* Announcement buttons */}
+          <div className="border-t border-gray-200 my-2"></div>
+          <SheetClose asChild>
+            <Button
+              variant="ghost"
+              className="justify-start text-blue-600"
+              onClick={() => setAnnouncementDialog(true)}
+            >
+              📢 Create Announcement
+            </Button>
+          </SheetClose>
+          <SheetClose asChild>
+            <Button
+              variant="ghost"
+              className="justify-start text-purple-600"
+              onClick={() => setManageAnnouncementsDialog(true)}
+            >
+              Manage Announcements
+            </Button>
+          </SheetClose>
+
+          {/* Add User button */}
+          {userType === 'admin' && (
             <SheetClose asChild>
-              <Button
-                variant="ghost"
-                className="justify-start"
-                onClick={() => setFilter('all')}
-              >
-                All Users
-              </Button>
-            </SheetClose>
-            <SheetClose asChild>
-              <Button
-                variant="ghost"
-                className="justify-start"
-                onClick={() => setFilter('unread')}
-              >
-                Unread Messages
-                {totalUnreadMessages > 0 && (
-                  <Badge variant="outline" className="ml-2 bg-[#00a884] text-white border-none">
-                    {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
-                  </Badge>
-                )}
-              </Button>
-            </SheetClose>
-            <SheetClose asChild>
-              <Button
-                variant="ghost"
-                className="justify-start"
-                onClick={() => setFilter('ips')}
-              >
-                User IPs
-                {matchingIPs.length > 0 && (
-                  <Badge variant="outline" className="ml-2 bg-red-500 text-white border-none">
-                    {matchingIPs.length}
-                  </Badge>
-                )}
-              </Button>
-            </SheetClose>
-            {userType === 'admin' && <SheetClose asChild>
               <Button
                 variant="ghost"
                 className="justify-start"
@@ -416,20 +588,22 @@ export default function UsersList({
               >
                 <UserPlus className="h-4 w-4 mr-2" /> Add New User
               </Button>
-            </SheetClose>}
-            <div className="border-t border-gray-200 my-2"></div>
-            <Button
-              variant="ghost"
-              className="justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-4 w-4 mr-2" /> Logout
-            </Button>
-          </div>
+            </SheetClose>
+          )}
+          
+          <div className="border-t border-gray-200 my-2"></div>
+          <Button
+            variant="ghost"
+            className="justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-4 w-4 mr-2" /> Logout
+          </Button>
         </div>
-      </SheetContent>
-    </Sheet>
-  );
+      </div>
+    </SheetContent>
+  </Sheet>
+);
 
   const renderIPsView = () => (
     <div className="p-4">
@@ -602,14 +776,43 @@ export default function UsersList({
             </Button>
           </div>
 
-          {userType === 'admin' && <Button
+          {/* {userType === 'admin' && <Button
             variant="default"
             size="sm"
             className="bg-[#00a884] hover:bg-[#009874]"
             onClick={() => setDialogOpen(true)}
           >
             <UserPlus className="h-4 w-4 mr-1" /> Add User
-          </Button>}
+          </Button>} */}
+
+          <div className="flex space-x-2">
+    <Button
+      variant="outline"
+      size="sm"
+      className="bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
+      onClick={() => setAnnouncementDialog(true)}
+    >
+      📢 Announcement
+    </Button>
+    <Button
+      variant="outline"
+      size="sm"
+      className="bg-purple-600 text-white hover:bg-purple-700 border-purple-600"
+      onClick={() => setManageAnnouncementsDialog(true)}
+    >
+      Manage
+    </Button>
+    {userType === 'admin' && (
+      <Button
+        variant="default"
+        size="sm"
+        className="bg-[#00a884] hover:bg-[#009874]"
+        onClick={() => setDialogOpen(true)}
+      >
+        <UserPlus className="h-4 w-4 mr-1" /> Add User
+      </Button>
+    )}
+  </div>
         </div>
 
         {/* Mobile filters - simple text displays */}
@@ -796,7 +999,96 @@ export default function UsersList({
           users={users}
 
         />
-      </Dialog>}
+      </Dialog> }
+
+
+
+/ Add these dialogs before the closing div
+{/* Create Announcement Dialog */}
+<Dialog open={announcementDialog} onOpenChange={setAnnouncementDialog}>
+  <DialogContent className="sm:max-w-md">
+    <DialogHeader>
+      <DialogTitle>Create Announcement</DialogTitle>
+      <DialogDescription>
+        Create a broadcast announcement for all users
+      </DialogDescription>
+    </DialogHeader>
+    <div className="space-y-4">
+      <textarea
+        placeholder="Enter your announcement message..."
+        value={announcementText}
+        onChange={(e) => setAnnouncementText(e.target.value)}
+        className="w-full h-32 p-3 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-[#00a884]"
+        maxLength={500}
+      />
+      <div className="text-sm text-gray-500 text-right">
+        {announcementText.length}/500 characters
+      </div>
+    </div>
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setAnnouncementDialog(false)}>
+        Cancel
+      </Button>
+      <Button 
+        onClick={handleCreateAnnouncement}
+        className="bg-[#00a884] hover:bg-[#009874]"
+      >
+        📢 Broadcast
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
+{/* Manage Announcements Dialog */}
+<Dialog open={manageAnnouncementsDialog} onOpenChange={setManageAnnouncementsDialog}>
+  <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+    <DialogHeader>
+      <DialogTitle>Manage Announcements</DialogTitle>
+      <DialogDescription>
+        View and delete existing announcements
+      </DialogDescription>
+    </DialogHeader>
+    <div className="space-y-4">
+      {announcements.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          No announcements found
+        </div>
+      ) : (
+        announcements.map((announcement) => (
+          <div key={announcement._id} className="border rounded-lg p-4 bg-gray-50">
+            <div className="flex justify-between items-start mb-2">
+              <div className="text-sm text-gray-600">
+                By: {announcement.createdBy} • {new Date(announcement.createdAt).toLocaleString()}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={() => handleDeleteAnnouncement(announcement._id)}
+              >
+                Delete
+              </Button>
+            </div>
+            <div className="text-gray-800 whitespace-pre-wrap">
+              {announcement.text}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setManageAnnouncementsDialog(false)}>
+        Close
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
+
+
+
+
+
     </div>
   );
 }

@@ -32,6 +32,86 @@ export default function UserChatPage() {
   const [subAdmins, setSubAdmins] = useState([]);
   const [selectedSubAdmin, setSelectedSubAdmin] = useState();
 
+  // Add this state variable at the top of UserChatPage component
+  const [announcements, setAnnouncements] = useState([]);
+
+  // Add these useEffect listeners in the existing useEffect where socket listeners are
+useEffect(() => {
+  if (socket && isLoggedIn) {
+    // ... existing socket listeners ...
+    const username = localStorage.getItem('chat_username');
+
+    // Add announcement listeners
+    socket.on('user:announcements', (announcementsList) => {
+      setAnnouncements(announcementsList);
+    });
+
+    socket.on('user:newAnnouncement', (announcement) => {
+      setAnnouncements(prev => [announcement, ...prev]);
+      toast.success('📢 New announcement received!');
+    });
+
+    socket.on('user:announcementDeleted', (deletedId) => {
+      setAnnouncements(prev => prev.filter(ann => ann._id !== deletedId));
+    });
+
+    // Request initial announcements
+    socket.emit('user:getAnnouncements', { username });
+
+    return () => {
+      // ... existing cleanup ...
+      socket.off('user:announcements');
+      socket.off('user:newAnnouncement');
+      socket.off('user:announcementDeleted');
+    };
+  }
+}, [socket, isLoggedIn]);
+
+
+
+// Add this component for displaying announcements
+const AnnouncementBar = () => {
+  // if (announcements.length === 0) return null;
+    if (announcements.length === 0 || (isMobile && showChat)) return null;
+
+
+  return (
+    <div className="bg-green-50 border-b border-blue-200 ">
+      {announcements.slice(0, 1).map((announcement) => (
+        <div key={announcement._id} className="p-3">
+          <marquee>
+            <div className="flex items-start gap-2">
+            <div className="text-green-600 mt-1">📢</div>
+            <div className="flex-1">
+              <div className="text-sm font-medium text-green-800 mb-1">
+                Announcement from {announcement.createdBy}
+              </div>
+              <div className="text-sm text-green-700 whitespace-pre-wrap">
+                {announcement.text}
+              </div>
+              {/* <div className="text-xs text-blue-600 mt-1">
+                {new Date(announcement.createdAt).toLocaleString()}
+              </div> */}
+            </div>
+          </div>
+          </marquee>
+        </div>
+      ))}
+      {/* {announcements.length > 1 && (
+        <div className="px-3 pb-2">
+          <div className="text-xs text-blue-600 text-center">
+            +{announcements.length - 1} more announcements
+          </div>
+        </div>
+      )} */}
+    </div>
+  );
+};
+
+
+ 
+
+
 
   console.log('latestMessages', latestMessages)
   console.log('unreadCounts', unreadCounts)
@@ -241,7 +321,7 @@ export default function UserChatPage() {
     return <ChatLoader />;
   }
 
-  
+
 
   const handleChatSelect = (type = 'admin', groupId = null, subAdmin = null) => {
     if (type === 'admin') {
@@ -263,6 +343,9 @@ export default function UserChatPage() {
   };
 
   return (
+
+<>
+      <AnnouncementBar />
     <div className="flex h-screen bg-[#f0f2f5]">
       {!isLoggedIn && (
         <div className="absolute inset-0 z-50 backdrop-blur-sm bg-black/30 flex items-center justify-center">
@@ -598,5 +681,6 @@ export default function UserChatPage() {
         />
       </div>
     </div>
+    </>
   );
 }

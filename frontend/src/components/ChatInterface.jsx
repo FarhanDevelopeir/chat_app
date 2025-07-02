@@ -525,7 +525,6 @@ export default function ChatInterface({
         isMobile={isMobile}
         onEditUser={handleEditUser}
         onEditGroup={handleEditGroup}
-
         onToggleSearch={handleToggleSearch}
       />
 
