@@ -109,10 +109,6 @@ const AnnouncementBar = () => {
 };
 
 
- 
-
-
-
   console.log('latestMessages', latestMessages)
   console.log('unreadCounts', unreadCounts)
 
