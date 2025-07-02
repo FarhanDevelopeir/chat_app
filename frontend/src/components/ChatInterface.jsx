@@ -23,7 +23,8 @@ export default function ChatInterface({
   onBackClick = null,
   chatType = 'user',
   userType,
-  currentUser
+  currentUser,
+  isBroadcast = false
 
 }) {
   const {
@@ -435,6 +436,7 @@ export default function ChatInterface({
       selectedGroup,
       receiver,
       username,
+      isBroadcast: isBroadcast,
       replyTo: replyingTo ? {
         messageId: replyingTo._id,
         content: replyingTo.content,
@@ -454,6 +456,7 @@ export default function ChatInterface({
       selectedGroup,
       receiver,
       username,
+      isBroadcast: isBroadcast,
       replyTo: replyingTo ? {
         messageId: replyingTo._id,
         content: replyingTo.content,
@@ -469,6 +472,7 @@ export default function ChatInterface({
       selectedGroup,
       receiver,
       username,
+      isBroadcast: isBroadcast,
       replyTo: replyingTo ? {
         messageId: replyingTo._id,
         content: replyingTo.content,
@@ -525,7 +529,7 @@ export default function ChatInterface({
         isMobile={isMobile}
         onEditUser={handleEditUser}
         onEditGroup={handleEditGroup}
-
+        isBroadcast={isBroadcast}
         onToggleSearch={handleToggleSearch}
       />
 

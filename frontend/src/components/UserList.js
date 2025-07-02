@@ -204,7 +204,7 @@ export default function UsersList({
   }, [socket, userType]);
 
 
-  
+
 
   //   // Apply search filter
   //   let filtered = sorted.filter(user =>
@@ -342,6 +342,17 @@ export default function UsersList({
     }
   };
 
+  const handleBroadcastSelect = () => {
+    // Create a special broadcast user object
+    const broadcastUser = {
+      username: 'broadcast',
+      isBroadcast: true,
+      isOnline: true,
+      profilePicture: null
+    };
+    onSelectUser(broadcastUser);
+  };
+
   // Mobile menu component
   const MobileMenu = () => (
     <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
@@ -406,6 +417,15 @@ export default function UsersList({
                     {matchingIPs.length}
                   </Badge>
                 )}
+              </Button>
+            </SheetClose>
+            <SheetClose asChild>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => setFilter('broadcast')}
+              >
+                📢 Broadcast Message
               </Button>
             </SheetClose>
             {userType === 'admin' && <SheetClose asChild>
@@ -600,6 +620,14 @@ export default function UsersList({
                 </Badge>
               )}
             </Button>
+            <Button
+              variant={filter === 'broadcast' ? "default" : "outline"}
+              size="sm"
+              className={filter === 'broadcast' ? "bg-[#00a884] hover:bg-[#00a884]" : ""}
+              onClick={() => setFilter('broadcast')}
+            >
+              📢 Broadcast
+            </Button>
           </div>
 
           {userType === 'admin' && <Button
@@ -634,6 +662,24 @@ export default function UsersList({
         <ScrollArea className="h-[calc(100vh-140px)] md:h-[calc(100vh-220px)]">
           {filter === 'ips' ? (
             renderIPsView()
+          ) : filter === 'broadcast' ? (
+            // Broadcast view
+            <div className="p-4">
+              <div
+                className="p-4 border-2 border-dashed border-[#00a884] rounded-lg cursor-pointer hover:bg-green-50 transition-colors"
+                onClick={handleBroadcastSelect}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 bg-[#00a884] rounded-full flex items-center justify-center">
+                    <span className="text-white text-xl">📢</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-[#00a884]">Broadcast Message</p>
+                    <p className="text-sm text-slate-600">Send message to all users</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           ) : sortedUsers.length === 0 ? (
             <div className="p-4 text-center text-slate-500">
               {filter === 'unread' ? 'No unread messages' : 'No users available'}

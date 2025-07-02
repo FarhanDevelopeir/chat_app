@@ -26,6 +26,7 @@ export default function ChatHeader({
   isMobile,
   onEditUser,
   onEditGroup,
+  isBroadcast,
   onToggleSearch,
 }) {
 
@@ -131,7 +132,7 @@ export default function ChatHeader({
         </div>
       </div>
 
-      {(isAdmin || isSubAdmin) && !isGroupChat && <div className="text-sm text-gray-500 mt-2">
+      {(isAdmin || isSubAdmin) && !isGroupChat && !isBroadcast && <div className="text-sm text-gray-500 mt-2">
         IP: {(isAdmin || isSubAdmin) ? selectedUser?.ipAddress || "Not Found" : ""}
       </div>}
 
@@ -172,7 +173,7 @@ export default function ChatHeader({
         <Search className="h-4 w-4" />
       </Button>
 
-        {isAdmin && selectedUser && !isGroupChat && (
+        {isAdmin && selectedUser && !isGroupChat && !isBroadcast && (
           <Button
             variant="outline"
             size="sm"
