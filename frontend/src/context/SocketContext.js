@@ -43,7 +43,7 @@ export function SocketProvider({ children }) {
   // 
   const [latestMessages, setLatestMessages] = useState({});
 
-  console.log('notificationPermission', notificationPermission)
+  console.log('connected', connected)
 
   // Refs
   const typingTimeout = useRef(null);
@@ -1172,6 +1172,7 @@ export function SocketProvider({ children }) {
     // Dialog states
     dialogOpen,
     setDialogOpen,
+    setConnected,
     userToEdit,
     setUserToEdit,
     isEditMode,

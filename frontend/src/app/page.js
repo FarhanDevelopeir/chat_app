@@ -26,7 +26,7 @@ export default function UserChatPage() {
   const [userGroups, setUserGroups] = useState([]);
   const [selectedChat, setSelectedChat] = useState('admin'); // null, 'admin', or groupId
   const [chatType, setChatType] = useState('user');
-
+  const {setConnected} = useSocket();
   const [unreadCounts, setUnreadCounts] = useState({});
   const [latestMessages, setLatestMessages] = useState({});
   const [subAdmins, setSubAdmins] = useState([]);
@@ -59,7 +59,7 @@ export default function UserChatPage() {
       socket.on('user:forceReload', (data) => {
         if (data.targetUsername === username) {
           console.log("Your password has been updated by admin.");
-          
+
           toast.warning('⚠️ Your password has been updated by admin. Page will reload in 3 seconds...');
           setTimeout(() => {
             window.location.reload();
@@ -151,6 +151,7 @@ export default function UserChatPage() {
 
     if (username && deviceId) {
       setIsLoggedIn(true);
+      setConnected(true);
     }
 
     setLoading(false);
