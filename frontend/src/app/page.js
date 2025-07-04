@@ -36,77 +36,91 @@ export default function UserChatPage() {
   const [announcements, setAnnouncements] = useState([]);
 
   // Add these useEffect listeners in the existing useEffect where socket listeners are
-useEffect(() => {
-  if (socket && isLoggedIn) {
-    // ... existing socket listeners ...
-    const username = localStorage.getItem('chat_username');
+  useEffect(() => {
+    if (socket && isLoggedIn) {
+      // ... existing socket listeners ...
+      const username = localStorage.getItem('chat_username');
 
-    // Add announcement listeners
-    socket.on('user:announcements', (announcementsList) => {
-      setAnnouncements(announcementsList);
-    });
+      // Add announcement listeners
+      socket.on('user:announcements', (announcementsList) => {
+        setAnnouncements(announcementsList);
+      });
 
-    socket.on('user:newAnnouncement', (announcement) => {
-      setAnnouncements(prev => [announcement, ...prev]);
-      toast.success('📢 New announcement received!');
-    });
+      socket.on('user:newAnnouncement', (announcement) => {
+        setAnnouncements(prev => [announcement, ...prev]);
+        toast.success('📢 New announcement received!');
+      });
 
-    socket.on('user:announcementDeleted', (deletedId) => {
-      setAnnouncements(prev => prev.filter(ann => ann._id !== deletedId));
-    });
+      socket.on('user:announcementDeleted', (deletedId) => {
+        setAnnouncements(prev => prev.filter(ann => ann._id !== deletedId));
+      });
 
-    // Request initial announcements
-    socket.emit('user:getAnnouncements', { username });
+      // **NEW: Listen for force reload (only for the specific user)**
+      socket.on('user:forceReload', (data) => {
+        if (data.targetUsername === username) {
+          console.log("Your password has been updated by admin.");
+          
+          toast.warning('⚠️ Your password has been updated by admin. Page will reload in 3 seconds...');
+          setTimeout(() => {
+            window.location.reload();
+          }, 3000);
+        }
+      });
 
-    return () => {
-      // ... existing cleanup ...
-      socket.off('user:announcements');
-      socket.off('user:newAnnouncement');
-      socket.off('user:announcementDeleted');
-    };
-  }
-}, [socket, isLoggedIn]);
+      // Request initial announcements
+      socket.emit('user:getAnnouncements', { username });
+
+      return () => {
+        // ... existing cleanup ...
+        socket.off('user:announcements');
+        socket.off('user:newAnnouncement');
+        socket.off('user:announcementDeleted');
+        socket.off('user:forceReload');
+
+      };
+    }
+  }, [socket, isLoggedIn]);
 
 
 
-// Add this component for displaying announcements
-const AnnouncementBar = () => {
-  // if (announcements.length === 0) return null;
+  // Add this component for displaying announcements
+  const AnnouncementBar = () => {
+    // if (announcements.length === 0) return null;
     if (announcements.length === 0 || (isMobile && showChat)) return null;
 
 
-  return (
-    <div className="bg-green-50 border-b border-blue-200 ">
-      {announcements.slice(0, 1).map((announcement) => (
-        <div key={announcement._id} className="p-3">
-          <marquee>
-            <div className="flex items-start gap-2">
-            <div className="text-green-600 mt-1">📢</div>
-            <div className="flex-1">
-              <div className="text-sm font-medium text-green-800 mb-1">
-                Announcement from {announcement.createdBy}
-              </div>
-              <div className="text-sm text-green-700 whitespace-pre-wrap">
-                {announcement.text}
-              </div>
-              {/* <div className="text-xs text-blue-600 mt-1">
+    return (
+      <div className="bg-green-50 border-b border-blue-200 ">
+        {announcements.slice(0, 1).map((announcement) => (
+          <div key={announcement._id} className="p-3">
+            <marquee>
+              <div className="flex items-start gap-2">
+                <div className="text-green-600 mt-1">📢</div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-green-800 mb-1">
+                    Announcement from {announcement.createdBy}
+                  </div>
+                  <div className="text-sm text-green-700 whitespace-pre-wrap">
+                    {announcement.text}
+                  </div>
+                  {/* <div className="text-xs text-blue-600 mt-1">
                 {new Date(announcement.createdAt).toLocaleString()}
               </div> */}
-            </div>
+                </div>
+              </div>
+            </marquee>
           </div>
-          </marquee>
-        </div>
-      ))}
-      {/* {announcements.length > 1 && (
+        ))}
+        {/* {announcements.length > 1 && (
         <div className="px-3 pb-2">
           <div className="text-xs text-blue-600 text-center">
             +{announcements.length - 1} more announcements
           </div>
         </div>
       )} */}
-    </div>
-  );
-};
+      </div>
+    );
+  };
 
 
   console.log('latestMessages', latestMessages)
@@ -340,156 +354,61 @@ const AnnouncementBar = () => {
 
   return (
 
-<>
+    <>
       <AnnouncementBar />
-    <div className="flex h-screen bg-[#f0f2f5]">
-      {!isLoggedIn && (
-        <div className="absolute inset-0 z-50 backdrop-blur-sm bg-black/30 flex items-center justify-center">
-          <UserLogin onSuccess={() => setIsLoggedIn(true)} />
-        </div>
-      )}
-
-      {/* Sidebar - Hidden on mobile when chat is showing */}
-      <div className={`${isMobile && showChat ? 'hidden' : 'w-full md:w-1/4'} bg-white h-full flex flex-col`}>
-        {/* Header */}
-        <div className="bg-[#008069] text-white p-3 flex justify-between items-center sticky top-0 z-10">
-          <div className="text-lg font-medium">WhatsApp</div>
-          <div className="flex items-center space-x-2">
-            <ProfileAvatar
-              user={currentUser}
-              onProfileUpdate={handleProfileUpdate}
-              socket={socket}
-            />
-            <button
-              onClick={handleLogout}
-              className="text-white p-1.5 rounded-full"
-              title="Logout"
-            >
-              <LogOut className="h-5 w-5" />
-            </button>
+      <div className="flex h-screen bg-[#f0f2f5]">
+        {!isLoggedIn && (
+          <div className="absolute inset-0 z-50 backdrop-blur-sm bg-black/30 flex items-center justify-center">
+            <UserLogin onSuccess={() => setIsLoggedIn(true)} />
           </div>
-        </div>
+        )}
 
-        <div className="flex-1 overflow-y-auto">
-          {/* Admin Support Chat */}
-
-
-
-          {/* // Replace the Admin Support Chat section with this updated code: */}
-
-          <div
-            className={`cursor-pointer hover:bg-gray-100 p-3 border-b border-gray-200 flex justify-between items-center ${selectedChat === 'admin' ? 'bg-gray-100' : ''}`}
-            onClick={() => handleChatSelect('admin')}
-          >
-            <div className="flex items-center flex-1">
-              <div className="relative">
-                <div className="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center text-white font-bold overflow-hidden">
-                  {admin?.profilePicture ? (
-                    <img
-                      src={admin?.profilePicture}
-                      alt="Admin profile picture"
-                      className="w-full h-full object-cover rounded-full"
-                    />
-                  ) : (
-                    "A"
-                  )}
-                </div>
-                {adminOnline && (
-                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                )}
-              </div>
-
-              <div className="ml-3 flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <p className="font-medium text-gray-900 flex items-center gap-1">
-                    Admin Support
-                    <img
-                      src="/blue-tick.png"
-                      alt="Blue Tick"
-                      className="w-4 h-4 md:w-5 md:h-5"
-                    />
-                  </p>
-                  {Number(unreadCounts['admin']) > 0 && selectedChat !== 'admin' && (
-                    <div className="bg-[#00a884] text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
-                      {unreadCounts['admin']}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center justify-between">
-                  <p
-                    className="text-sm text-gray-500 truncate overflow-hidden whitespace-nowrap max-w-[160px]"
-                    title={(() => {
-                      const latestMsg = latestMessages['admin'];
-                      if (latestMsg) {
-                        const isSelf = latestMsg.sender === localStorage.getItem('chat_username');
-                        const prefix = isSelf ? 'You: ' : '';
-                        const msgContent = latestMsg.content || '';
-
-                        if (msgContent.includes("Document:")) return prefix + '📎 File';
-                        if (msgContent.includes("Image:")) return prefix + '🖼️ Image';
-                        if (msgContent.includes("Voice:")) return prefix + '🎵 Audio';
-
-                        return prefix + msgContent;
-                      }
-
-                      return adminOnline ? 'Online' : 'Offline';
-                    })()}
-                  >
-                    {latestMessages['admin'] ? (() => {
-                      const latestMsg = latestMessages['admin'];
-                      const isSelf = latestMsg.sender === localStorage.getItem('chat_username');
-                      const prefix = isSelf ? 'You: ' : '';
-
-                      let messageText = '';
-                      const msgContent = latestMsg.content || '';
-
-                      if (msgContent.includes("Document:")) {
-                        messageText = '📎 File';
-                      } else if (msgContent.includes("Image:")) {
-                        messageText = '🖼️ Image';
-                      } else if (msgContent.includes("Voice:")) {
-                        messageText = '🎵 Audio';
-                      } else {
-                        messageText = msgContent;
-                      }
-
-                      const displayText = prefix + messageText;
-                      return displayText.length > 20 ? displayText.substring(0, 20) + '...' : displayText;
-                    })() : (adminOnline ? 'Online' : 'Offline')}
-                  </p>
-                  {latestMessages['admin'] && latestMessages['admin'].createdAt && (
-                    <span className="text-xs text-gray-400 ml-2">
-                      {new Date(latestMessages['admin'].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  )}
-                </div>
-              </div>
+        {/* Sidebar - Hidden on mobile when chat is showing */}
+        <div className={`${isMobile && showChat ? 'hidden' : 'w-full md:w-1/4'} bg-white h-full flex flex-col`}>
+          {/* Header */}
+          <div className="bg-[#008069] text-white p-3 flex justify-between items-center sticky top-0 z-10">
+            <div className="text-lg font-medium">WhatsApp</div>
+            <div className="flex items-center space-x-2">
+              <ProfileAvatar
+                user={currentUser}
+                onProfileUpdate={handleProfileUpdate}
+                socket={socket}
+              />
+              <button
+                onClick={handleLogout}
+                className="text-white p-1.5 rounded-full"
+                title="Logout"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
             </div>
-            {isMobile && (
-              <ChevronRight className="h-5 w-5 text-gray-400" />
-            )}
           </div>
-          {/* SubAdmin Chats */}
-          {subAdmins?.map((subAdmin) => (
+
+          <div className="flex-1 overflow-y-auto">
+            {/* Admin Support Chat */}
+
+
+
+            {/* // Replace the Admin Support Chat section with this updated code: */}
+
             <div
-              key={subAdmin.username}
-              className={`cursor-pointer hover:bg-gray-100 p-3 border-b border-gray-200 flex justify-between items-center ${selectedChat === subAdmin.username ? 'bg-gray-100' : ''}`}
-              onClick={() => handleChatSelect('subadmin', null, subAdmin)}
+              className={`cursor-pointer hover:bg-gray-100 p-3 border-b border-gray-200 flex justify-between items-center ${selectedChat === 'admin' ? 'bg-gray-100' : ''}`}
+              onClick={() => handleChatSelect('admin')}
             >
               <div className="flex items-center flex-1">
                 <div className="relative">
                   <div className="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center text-white font-bold overflow-hidden">
-                    {subAdmin.profilePicture ? (
+                    {admin?.profilePicture ? (
                       <img
-                        src={subAdmin.profilePicture}
-                        alt={`${subAdmin.username} profile picture`}
+                        src={admin?.profilePicture}
+                        alt="Admin profile picture"
                         className="w-full h-full object-cover rounded-full"
                       />
                     ) : (
-                      subAdmin.username.charAt(0).toUpperCase()
+                      "A"
                     )}
                   </div>
-                  {subAdmin.isOnline && (
+                  {adminOnline && (
                     <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                   )}
                 </div>
@@ -497,16 +416,16 @@ const AnnouncementBar = () => {
                 <div className="ml-3 flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <p className="font-medium text-gray-900 flex items-center gap-1">
-                      {subAdmin.username}
+                      Admin Support
                       <img
                         src="/blue-tick.png"
                         alt="Blue Tick"
                         className="w-4 h-4 md:w-5 md:h-5"
                       />
                     </p>
-                    {Number(unreadCounts[subAdmin.username]) > 0 && selectedChat !== subAdmin.username && (
+                    {Number(unreadCounts['admin']) > 0 && selectedChat !== 'admin' && (
                       <div className="bg-[#00a884] text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
-                        {unreadCounts[subAdmin.username]}
+                        {unreadCounts['admin']}
                       </div>
                     )}
                   </div>
@@ -514,7 +433,7 @@ const AnnouncementBar = () => {
                     <p
                       className="text-sm text-gray-500 truncate overflow-hidden whitespace-nowrap max-w-[160px]"
                       title={(() => {
-                        const latestMsg = latestMessages[subAdmin.username];
+                        const latestMsg = latestMessages['admin'];
                         if (latestMsg) {
                           const isSelf = latestMsg.sender === localStorage.getItem('chat_username');
                           const prefix = isSelf ? 'You: ' : '';
@@ -527,11 +446,11 @@ const AnnouncementBar = () => {
                           return prefix + msgContent;
                         }
 
-                        return subAdmin.isOnline ? 'Online' : 'Offline';
+                        return adminOnline ? 'Online' : 'Offline';
                       })()}
                     >
-                      {latestMessages[subAdmin.username] ? (() => {
-                        const latestMsg = latestMessages[subAdmin.username];
+                      {latestMessages['admin'] ? (() => {
+                        const latestMsg = latestMessages['admin'];
                         const isSelf = latestMsg.sender === localStorage.getItem('chat_username');
                         const prefix = isSelf ? 'You: ' : '';
 
@@ -550,11 +469,11 @@ const AnnouncementBar = () => {
 
                         const displayText = prefix + messageText;
                         return displayText.length > 20 ? displayText.substring(0, 20) + '...' : displayText;
-                      })() : (subAdmin.isOnline ? 'Online' : 'Offline')}
+                      })() : (adminOnline ? 'Online' : 'Offline')}
                     </p>
-                    {latestMessages[subAdmin.username] && latestMessages[subAdmin.username].createdAt && (
+                    {latestMessages['admin'] && latestMessages['admin'].createdAt && (
                       <span className="text-xs text-gray-400 ml-2">
-                        {new Date(latestMessages[subAdmin.username].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(latestMessages['admin'].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     )}
                   </div>
@@ -564,119 +483,214 @@ const AnnouncementBar = () => {
                 <ChevronRight className="h-5 w-5 text-gray-400" />
               )}
             </div>
-          ))}
-          {/* // Updated User Groups mapping */}
-          {userGroups.map((group) => (
-            <div
-              key={group._id}
-              className={`cursor-pointer hover:bg-gray-100 p-3 border-b border-gray-200 flex justify-between items-center ${selectedChat === group._id ? 'bg-gray-100' : ''}`}
-              onClick={() => handleChatSelect('group', group._id)}
-            >
-              <div className="flex items-center flex-1">
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-full bg-[#128c7e] flex items-center justify-center text-white font-bold">
-                    {group.name.charAt(0).toUpperCase()}
-                  </div>
-                </div>
-                <div className="ml-3 flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium text-gray-900">
-                      {group.name}
-                    </p>
-                    {unreadCounts[group._id] > 0 && (
-                      <div className="bg-[#00a884] text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
-                        {unreadCounts[group._id]}
-                      </div>
+            {/* SubAdmin Chats */}
+            {subAdmins?.map((subAdmin) => (
+              <div
+                key={subAdmin.username}
+                className={`cursor-pointer hover:bg-gray-100 p-3 border-b border-gray-200 flex justify-between items-center ${selectedChat === subAdmin.username ? 'bg-gray-100' : ''}`}
+                onClick={() => handleChatSelect('subadmin', null, subAdmin)}
+              >
+                <div className="flex items-center flex-1">
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center text-white font-bold overflow-hidden">
+                      {subAdmin.profilePicture ? (
+                        <img
+                          src={subAdmin.profilePicture}
+                          alt={`${subAdmin.username} profile picture`}
+                          className="w-full h-full object-cover rounded-full"
+                        />
+                      ) : (
+                        subAdmin.username.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    {subAdmin.isOnline && (
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                     )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <p
-                      className="text-sm text-gray-500 truncate max-w-[160px]"
-                      title={(() => {
-                        const latestMsg = latestMessages[group._id];
-                        if (latestMsg) {
+
+                  <div className="ml-3 flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium text-gray-900 flex items-center gap-1">
+                        {subAdmin.username}
+                        <img
+                          src="/blue-tick.png"
+                          alt="Blue Tick"
+                          className="w-4 h-4 md:w-5 md:h-5"
+                        />
+                      </p>
+                      {Number(unreadCounts[subAdmin.username]) > 0 && selectedChat !== subAdmin.username && (
+                        <div className="bg-[#00a884] text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                          {unreadCounts[subAdmin.username]}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p
+                        className="text-sm text-gray-500 truncate overflow-hidden whitespace-nowrap max-w-[160px]"
+                        title={(() => {
+                          const latestMsg = latestMessages[subAdmin.username];
+                          if (latestMsg) {
+                            const isSelf = latestMsg.sender === localStorage.getItem('chat_username');
+                            const prefix = isSelf ? 'You: ' : '';
+                            const msgContent = latestMsg.content || '';
+
+                            if (msgContent.includes("Document:")) return prefix + '📎 File';
+                            if (msgContent.includes("Image:")) return prefix + '🖼️ Image';
+                            if (msgContent.includes("Voice:")) return prefix + '🎵 Audio';
+
+                            return prefix + msgContent;
+                          }
+
+                          return subAdmin.isOnline ? 'Online' : 'Offline';
+                        })()}
+                      >
+                        {latestMessages[subAdmin.username] ? (() => {
+                          const latestMsg = latestMessages[subAdmin.username];
+                          const isSelf = latestMsg.sender === localStorage.getItem('chat_username');
+                          const prefix = isSelf ? 'You: ' : '';
+
+                          let messageText = '';
+                          const msgContent = latestMsg.content || '';
+
+                          if (msgContent.includes("Document:")) {
+                            messageText = '📎 File';
+                          } else if (msgContent.includes("Image:")) {
+                            messageText = '🖼️ Image';
+                          } else if (msgContent.includes("Voice:")) {
+                            messageText = '🎵 Audio';
+                          } else {
+                            messageText = msgContent;
+                          }
+
+                          const displayText = prefix + messageText;
+                          return displayText.length > 20 ? displayText.substring(0, 20) + '...' : displayText;
+                        })() : (subAdmin.isOnline ? 'Online' : 'Offline')}
+                      </p>
+                      {latestMessages[subAdmin.username] && latestMessages[subAdmin.username].createdAt && (
+                        <span className="text-xs text-gray-400 ml-2">
+                          {new Date(latestMessages[subAdmin.username].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {isMobile && (
+                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                )}
+              </div>
+            ))}
+            {/* // Updated User Groups mapping */}
+            {userGroups.map((group) => (
+              <div
+                key={group._id}
+                className={`cursor-pointer hover:bg-gray-100 p-3 border-b border-gray-200 flex justify-between items-center ${selectedChat === group._id ? 'bg-gray-100' : ''}`}
+                onClick={() => handleChatSelect('group', group._id)}
+              >
+                <div className="flex items-center flex-1">
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full bg-[#128c7e] flex items-center justify-center text-white font-bold">
+                      {group.name.charAt(0).toUpperCase()}
+                    </div>
+                  </div>
+                  <div className="ml-3 flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium text-gray-900">
+                        {group.name}
+                      </p>
+                      {unreadCounts[group._id] > 0 && (
+                        <div className="bg-[#00a884] text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                          {unreadCounts[group._id]}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p
+                        className="text-sm text-gray-500 truncate max-w-[160px]"
+                        title={(() => {
+                          const latestMsg = latestMessages[group._id];
+                          if (latestMsg) {
+                            const isSelf = latestMsg.sender === localStorage.getItem('chat_username');
+                            const senderName = isSelf ? 'You' : latestMsg.sender;
+                            const msgContent = latestMsg.content || '';
+
+                            if (msgContent.includes("Document:")) return `${senderName}: 📎 File`;
+                            if (msgContent.includes("Image:")) return `${senderName}: 🖼️ Image`;
+                            if (msgContent.includes("Voice:")) return `${senderName}: 🎵 Audio`;
+
+                            return `${senderName}: ${msgContent}`;
+                          }
+
+                          return `${group.members.length} members`;
+                        })()}
+                      >
+                        {latestMessages[group._id] ? (() => {
+                          const latestMsg = latestMessages[group._id];
                           const isSelf = latestMsg.sender === localStorage.getItem('chat_username');
                           const senderName = isSelf ? 'You' : latestMsg.sender;
                           const msgContent = latestMsg.content || '';
 
-                          if (msgContent.includes("Document:")) return `${senderName}: 📎 File`;
-                          if (msgContent.includes("Image:")) return `${senderName}: 🖼️ Image`;
-                          if (msgContent.includes("Voice:")) return `${senderName}: 🎵 Audio`;
+                          let messageText = '';
+                          if (msgContent.includes("Document:")) {
+                            messageText = '📎 File';
+                          } else if (msgContent.includes("Image:")) {
+                            messageText = '🖼️ Image';
+                          } else if (msgContent.includes("Voice:")) {
+                            messageText = '🎵 Audio';
+                          } else {
+                            messageText = msgContent;
+                          }
 
-                          return `${senderName}: ${msgContent}`;
-                        }
-
-                        return `${group.members.length} members`;
-                      })()}
-                    >
-                      {latestMessages[group._id] ? (() => {
-                        const latestMsg = latestMessages[group._id];
-                        const isSelf = latestMsg.sender === localStorage.getItem('chat_username');
-                        const senderName = isSelf ? 'You' : latestMsg.sender;
-                        const msgContent = latestMsg.content || '';
-
-                        let messageText = '';
-                        if (msgContent.includes("Document:")) {
-                          messageText = '📎 File';
-                        } else if (msgContent.includes("Image:")) {
-                          messageText = '🖼️ Image';
-                        } else if (msgContent.includes("Voice:")) {
-                          messageText = '🎵 Audio';
-                        } else {
-                          messageText = msgContent;
-                        }
-
-                        const displayText = `${senderName}: ${messageText}`;
-                        return displayText.length > 20 ? displayText.substring(0, 20) + '...' : displayText;
-                      })() : `${group.members.length} members`}
-                    </p>
+                          const displayText = `${senderName}: ${messageText}`;
+                          return displayText.length > 20 ? displayText.substring(0, 20) + '...' : displayText;
+                        })() : `${group.members.length} members`}
+                      </p>
 
 
-                    {latestMessages[group._id] && (
-                      <span className="text-xs text-gray-400 ml-2">
-                        {new Date(latestMessages[group._id].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    )}
+                      {latestMessages[group._id] && (
+                        <span className="text-xs text-gray-400 ml-2">
+                          {new Date(latestMessages[group._id].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
+                {isMobile && (
+                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                )}
               </div>
-              {isMobile && (
-                <ChevronRight className="h-5 w-5 text-gray-400" />
-              )}
-            </div>
-          ))}
+            ))}
 
+          </div>
+
+          {/* Empty state for mobile */}
+          {isMobile && (
+            <div className="flex-1 flex flex-col items-center justify-center p-4 bg-[#f0f2f5]">
+              <div className="bg-white p-5 rounded-lg shadow-sm text-center max-w-xs">
+                <h3 className="font-medium text-lg mb-2">Welcome to WhatsApp Chat</h3>
+                <p className="text-gray-600 mb-4">
+                  Tap on the Admin chat to start your conversation
+                </p>
+                <div className="w-16 h-16 rounded-full bg-[#00a884] flex items-center justify-center mx-auto text-white text-2xl font-bold">
+                  A
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Empty state for mobile */}
-        {isMobile && (
-          <div className="flex-1 flex flex-col items-center justify-center p-4 bg-[#f0f2f5]">
-            <div className="bg-white p-5 rounded-lg shadow-sm text-center max-w-xs">
-              <h3 className="font-medium text-lg mb-2">Welcome to WhatsApp Chat</h3>
-              <p className="text-gray-600 mb-4">
-                Tap on the Admin chat to start your conversation
-              </p>
-              <div className="w-16 h-16 rounded-full bg-[#00a884] flex items-center justify-center mx-auto text-white text-2xl font-bold">
-                A
-              </div>
-            </div>
-          </div>
-        )}
+        <div className={`${isMobile && !showChat ? 'hidden' : 'w-full'} md:flex-1 flex flex-col`}>
+          <ChatInterface
+            onBackClick={isMobile ? handleBackClick : null}
+            // selectedUser={chatType === 'user' ? 'admin' : null}
+            selectedUser={chatType === 'user' ? 'admin' : chatType === 'subadmin' ? selectedChat : null}
+            selectedGroup={chatType === 'group' ? selectedChat : null}
+            chatType={chatType}
+            groups={userGroups}
+            admin={admin}
+            subAdmin={selectedSubAdmin}
+          />
+        </div>
       </div>
-
-      <div className={`${isMobile && !showChat ? 'hidden' : 'w-full'} md:flex-1 flex flex-col`}>
-        <ChatInterface
-          onBackClick={isMobile ? handleBackClick : null}
-          // selectedUser={chatType === 'user' ? 'admin' : null}
-          selectedUser={chatType === 'user' ? 'admin' : chatType === 'subadmin' ? selectedChat : null}
-          selectedGroup={chatType === 'group' ? selectedChat : null}
-          chatType={chatType}
-          groups={userGroups}
-          admin={admin}
-          subAdmin={selectedSubAdmin}
-        />
-      </div>
-    </div>
     </>
   );
 }
