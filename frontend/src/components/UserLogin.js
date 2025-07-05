@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Lock, User, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useRouter } from 'next/navigation';
@@ -14,6 +15,7 @@ import { useRouter } from 'next/navigation';
 export default function UserLogin({ onSuccess }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -27,7 +29,6 @@ export default function UserLogin({ onSuccess }) {
 
     console.log('savedUsername:', savedUsername);
     console.log('deviceId:', deviceId);
-
 
     if (savedUsername && deviceId && socket) {
       setLoading(true);
@@ -44,14 +45,12 @@ export default function UserLogin({ onSuccess }) {
     const handleLoginSuccess = ({ user }) => {
       setLoading(false);
       localStorage.setItem('chat_username', user.username);
-      // localStorage.setItem('chat_device_id', user.deviceId);
-
-      // Reload page to show chat interface
       window.location.reload();
     };
 
     // Handle login error
     const handleLoginError = ({ error }) => {
+      console.log("Login error:", error);
       setLoading(false);
       setError(error);
     };
@@ -78,10 +77,15 @@ export default function UserLogin({ onSuccess }) {
       return;
     }
 
+    if (!acceptTerms) {
+      setError('Please accept the Terms & Conditions to continue');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
-    // // Generate or retrieve device ID
+    // Generate or retrieve device ID
     let deviceId = localStorage.getItem('chat_device_id');
     if (!deviceId) {
       deviceId = `device_${Math.random().toString(36).substring(2, 15)}`;
@@ -96,8 +100,11 @@ export default function UserLogin({ onSuccess }) {
     setShowPassword(!showPassword);
   };
 
+  // Check if form is valid for button activation
+  const isFormValid = username.trim() !== '' && password.trim() !== '' && acceptTerms;
+
   return (
-    <Card className="w-full max-w-md mx-auto shadow-lg" >
+    <Card className="w-full max-w-md mx-auto shadow-lg">
       <CardHeader className="space-y-1">
         <div className="flex justify-center">
           <img
@@ -107,8 +114,8 @@ export default function UserLogin({ onSuccess }) {
           />
         </div>
         <CardTitle className="text-2xl font-bold text-center">Welcome to WinChat</CardTitle>
-       
       </CardHeader>
+      
       <CardContent className="space-y-4">
         {error && (
           <Alert variant="destructive" className="text-sm">
@@ -131,7 +138,7 @@ export default function UserLogin({ onSuccess }) {
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 ">
           <Label htmlFor="password">Password</Label>
           <div className="relative">
             <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
@@ -156,13 +163,39 @@ export default function UserLogin({ onSuccess }) {
             </button>
           </div>
         </div>
+
+        <div className="flex items-center space-x-2  mb-1">
+          <Checkbox
+            id="acceptTerms"
+            checked={acceptTerms}
+            onCheckedChange={setAcceptTerms}
+
+          />
+          <label
+            htmlFor="acceptTerms"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            I accept the{' '}
+            {/* <a 
+              href="#" 
+              className="text-[#00a884] hover:underline"
+              onClick={(e) => e.preventDefault()}
+            > */}
+              Terms & Conditions
+            {/* </a> */}
+          </label>
+        </div>
       </CardContent>
 
       <CardFooter>
         <Button
-          className="w-full bg-[#00a884] text-white hover:bg-[#008f72] focus:ring-2 focus:ring-offset-2 focus:ring-[#00a884] rounded-md"
+          className={`w-full text-white rounded-md transition-colors duration-200 ${
+            isFormValid && !loading
+              ? 'bg-[#00a884] hover:bg-[#008f72] focus:ring-2 focus:ring-offset-2 focus:ring-[#00a884]'
+              : 'bg-gray-300 cursor-not-allowed hover:bg-gray-300'
+          }`}
           onClick={handleSubmit}
-          disabled={loading}
+          disabled={!isFormValid || loading}
         >
           {loading ? (
             <>

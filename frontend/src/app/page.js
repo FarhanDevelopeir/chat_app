@@ -84,43 +84,7 @@ export default function UserChatPage() {
 
 
   // Add this component for displaying announcements
-  const AnnouncementBar = () => {
-    // if (announcements.length === 0) return null;
-    if (announcements.length === 0 || (isMobile && showChat)) return null;
 
-
-    return (
-      <div className="bg-green-50 border-b border-blue-200 ">
-        {announcements.slice(0, 1).map((announcement) => (
-          <div key={announcement._id} className="p-3">
-            <marquee>
-              <div className="flex items-start gap-2">
-                <div className="text-green-600 mt-1">📢</div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-green-800 mb-1">
-                    Announcement from {announcement.createdBy}
-                  </div>
-                  <div className="text-sm text-green-700 whitespace-pre-wrap">
-                    {announcement.text}
-                  </div>
-                  {/* <div className="text-xs text-blue-600 mt-1">
-                {new Date(announcement.createdAt).toLocaleString()}
-              </div> */}
-                </div>
-              </div>
-            </marquee>
-          </div>
-        ))}
-        {/* {announcements.length > 1 && (
-        <div className="px-3 pb-2">
-          <div className="text-xs text-blue-600 text-center">
-            +{announcements.length - 1} more announcements
-          </div>
-        </div>
-      )} */}
-      </div>
-    );
-  };
 
 
   console.log('latestMessages', latestMessages)
@@ -144,18 +108,6 @@ export default function UserChatPage() {
     };
   }, []);
 
-  useEffect(() => {
-    // Check if user is already logged in
-    const username = localStorage.getItem('chat_username');
-    const deviceId = localStorage.getItem('chat_device_id');
-
-    if (username && deviceId) {
-      setIsLoggedIn(true);
-      setConnected(true);
-    }
-
-    setLoading(false);
-  }, []);
 
   useEffect(() => {
     if (socket && isLoggedIn) {
@@ -303,13 +255,55 @@ export default function UserChatPage() {
       setSubAdminOnline(status.isOnline);
     });
 
+    socket.on('user:loginSuccess', ({ user }) => {
+      console.log('Login success:', user);
+      setIsLoggedIn(true);
+      setConnected(true);
+      setLoading(false);
+      setCurrentUser(user);
+    });
+
+    const username = localStorage.getItem('chat_username');
+    const deviceId = localStorage.getItem('chat_device_id');
+
+    if (username && deviceId) {
+
+      socket.emit('user:islogin', { username, deviceId });
+
+    }
+
+    if (!username && !deviceId) {
+      setLoading(false);
+    }
+
     // Request admin status on connection
     socket.emit('user:requestAdminStatus');
 
     return () => {
       socket.off('admin:status');
       socket.off('subadmin:status');
+      socket.off('user:loginSuccess');
       socket.off('message:receive');
+    };
+  }, [socket]);
+
+
+
+
+  useEffect(() => {
+    if (!socket) return;
+    // Handle login error
+    const handleLoginError = ({ error }) => {
+      console.log("Login error:", error);
+      localStorage.removeItem('chat_username');
+      localStorage.removeItem('chat_device_id');
+      setLoading(false);
+    };
+
+    socket.on('user:loginError', handleLoginError);
+
+    return () => {
+      socket.off('user:loginError', handleLoginError);
     };
   }, [socket]);
 
@@ -331,6 +325,44 @@ export default function UserChatPage() {
   if (loading) {
     return <ChatLoader />;
   }
+
+  const AnnouncementBar = () => {
+    // if (announcements.length === 0) return null;
+    if (announcements.length === 0 || (isMobile && showChat)) return null;
+
+
+    return (
+      <div className="bg-green-50 border-b border-blue-200 ">
+        {announcements.slice(0, 1).map((announcement) => (
+          <div key={announcement._id} className="p-3">
+            <marquee>
+              <div className="flex items-start gap-2">
+                <div className="text-green-600 mt-1">📢</div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-green-800 mb-1">
+                    Announcement from {announcement.createdBy}
+                  </div>
+                  <div className="text-sm text-green-700 whitespace-pre-wrap">
+                    {announcement.text}
+                  </div>
+                  {/* <div className="text-xs text-blue-600 mt-1">
+                {new Date(announcement.createdAt).toLocaleString()}
+              </div> */}
+                </div>
+              </div>
+            </marquee>
+          </div>
+        ))}
+        {/* {announcements.length > 1 && (
+        <div className="px-3 pb-2">
+          <div className="text-xs text-blue-600 text-center">
+            +{announcements.length - 1} more announcements
+          </div>
+        </div>
+      )} */}
+      </div>
+    );
+  };
 
 
 

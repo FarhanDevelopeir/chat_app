@@ -42,6 +42,56 @@ const CreateUser = ({
 
     console.log('userToEdit', userToEdit)
 
+    // Add these new state variables to your existing useState declarations
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Add this new function to handle delete confirmation
+    const handleDeleteUser = () => {
+        setShowDeleteDialog(true);
+    };
+
+    // Add this new function to confirm deletion
+    const confirmDelete = async () => {
+        if (!userToEdit) return;
+
+        setIsDeleting(true);
+
+        try {
+            socket.emit('admin:deleteUser', {
+                userID: userToEdit._id,
+                username: userToEdit.username
+            });
+
+            // Listen for the response
+            socket.once('admin:userDeleted', (response) => {
+                if (response.success) {
+                    toast({
+                        title: "Success",
+                        description: `User ${userToEdit.username} deleted successfully`
+                    });
+                    setShowDeleteDialog(false);
+                    resetForm();
+                    setDialogOpen(false);
+                } else {
+                    toast({
+                        title: "Error",
+                        description: response.message || "Failed to delete user",
+                        variant: "destructive"
+                    });
+                }
+                setIsDeleting(false);
+            });
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "Failed to delete user",
+                variant: "destructive"
+            });
+            setIsDeleting(false);
+        }
+    };
+
     // Generate password on dialog open (only for create mode)
     useEffect(() => {
         if (dialogOpen) {
@@ -392,6 +442,16 @@ const CreateUser = ({
                 >
                     Cancel
                 </Button>
+                {/* Add Delete Button - Only show in edit mode */}
+                {isEditMode && (
+                    <Button
+                        variant="destructive"
+                        onClick={handleDeleteUser}
+                        disabled={isSubmitting || isDeleting}
+                    >
+                        Delete User
+                    </Button>
+                )}
                 <Button
                     onClick={handleCreateUser}
                     disabled={isSubmitting}
@@ -403,6 +463,39 @@ const CreateUser = ({
                     }
                 </Button>
             </DialogFooter>
+
+
+            {/* Add Delete Confirmation Dialog - Place this after the main DialogContent */}
+            {showDeleteDialog && (
+                <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Confirm Delete</DialogTitle>
+                            <DialogDescription>
+                                Are you sure you want to delete user "{userToEdit?.username}"?
+                                This action cannot be undone and will permanently remove the user from the database.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <DialogFooter>
+                            <Button
+                                variant="outline"
+                                onClick={() => setShowDeleteDialog(false)}
+                                disabled={isDeleting}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={confirmDelete}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? "Deleting..." : "Delete User"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
         </DialogContent>
     )
 }
