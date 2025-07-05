@@ -117,6 +117,12 @@ const CreateUser = ({
     }, [dialogOpen, isEditMode, userToEdit, users]);
 
     // Reset selected users when isSubAdmin is unchecked
+
+    useEffect(() => {
+
+        // Listen for the response
+
+    }, [])
     useEffect(() => {
         if (!isSubAdmin) {
             setSelectedUsers([]);
@@ -215,8 +221,8 @@ const CreateUser = ({
 
                 socket.emit('admin:updateUser', updateData);
 
-                // Listen for the response
                 socket.once('admin:userUpdated', (response) => {
+                    console.log('response after user updated', response)
                     if (response.success) {
                         toast({
                             title: "Success",
@@ -224,6 +230,7 @@ const CreateUser = ({
                         });
                         resetForm();
                         setDialogOpen(false);
+                        socket.emit('admin:getSubAdmins');
                     } else {
                         toast({
                             title: "Error",
@@ -232,7 +239,9 @@ const CreateUser = ({
                         });
                     }
                     setIsSubmitting(false);
-                });
+                })
+
+                    ;
             } else {
                 // Emit event to create a new user
                 const createData = {
@@ -353,6 +362,7 @@ const CreateUser = ({
                         id="isSubAdmin"
                         type="checkbox"
                         checked={isSubAdmin}
+                        disabled={isEditMode}
                         onChange={(e) => setIsSubAdmin(e.target.checked)}
                         className="h-4 w-4"
                     />

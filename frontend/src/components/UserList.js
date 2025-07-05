@@ -55,7 +55,7 @@ export default function UsersList({
   dialogOpen,
   setDialogOpen,
   userToEdit,
-  isEditMode,
+  setUserToEdit,
   newUsername,
   newPassword,
   setNewUsername,
@@ -73,10 +73,12 @@ export default function UsersList({
   const { latestMessages, setLatestMessages, formatMessageForDisplay } = useSocket();
   const currentUserRef = useRef(currentUser);
   const [pinnedChats, setPinnedChats] = useState([]);
-   // Add these state variables at the top of UsersList component
+  // Add these state variables at the top of UsersList component
   const [announcementDialog, setAnnouncementDialog] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [announcementText, setAnnouncementText] = useState('');
   const [announcements, setAnnouncements] = useState([]);
+  const [subAdmins, setSubAdmins] = useState([]);
   const [manageAnnouncementsDialog, setManageAnnouncementsDialog] = useState(false);
 
   // Add these useEffect listeners
@@ -97,11 +99,20 @@ export default function UsersList({
         toast.success('Announcement deleted successfully!');
       });
 
+      if (socket && userType === 'admin') {
+        // Listen for subadmins list
+        socket.on('admin:subAdminsList', (subAdminsList) => {
+          setSubAdmins(subAdminsList);
+        });
+      }
+
       // Request initial announcements
       socket.emit('announcements:fetch', { userType });
+      socket.emit('admin:getSubAdmins');
 
       return () => {
         socket.off('announcements:list');
+        socket.off('admin:subAdminsList');
         socket.off('announcement:created');
         socket.off('announcement:deleted');
       };
@@ -411,6 +422,18 @@ export default function UsersList({
     onSelectUser(broadcastUser);
   };
 
+  const handleSubAdminSelect = (subAdmin) => {
+    // Set the user to edit with subadmin data
+    setNewUsername(subAdmin.username);
+    setNewPassword(''); // Keep password empty for editing
+    setDialogOpen(true);
+
+    // You might want to pass additional data to CreateUser component
+    // Set edit mode and user data
+    setIsEditMode(true);
+    setUserToEdit(subAdmin);
+  };
+
   // Mobile menu component
   // const MobileMenu = () => (
   //   <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
@@ -501,72 +524,72 @@ export default function UsersList({
   // );
 
   // Update the MobileMenu component in UsersList to include announcement buttons
-const MobileMenu = () => (
-  <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-    <SheetTrigger asChild>
-      <Button variant="ghost" size="icon" className="md:hidden relative">
-        <Menu className="h-5 w-5" />
-        {totalUnreadMessages > 0 && (
-          <Badge
-            variant="destructive"
-            className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center bg-red-500 hover:bg-red-500"
-          >
-            {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
-          </Badge>
-        )}
-      </Button>
-    </SheetTrigger>
-    <SheetContent side="left" className="w-[240px] p-0">
-      <div className="p-4 bg-[#00a884] text-white">
-        <div className="flex justify-between items-center mb-2">
-          <SheetTitle className="font-medium">Admin Panel</SheetTitle>
-          <SheetClose asChild>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-[#009874]">
-              <X className="h-5 w-5" />
-            </Button>
-          </SheetClose>
+  const MobileMenu = () => (
+    <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className="md:hidden relative">
+          <Menu className="h-5 w-5" />
+          {totalUnreadMessages > 0 && (
+            <Badge
+              variant="destructive"
+              className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center bg-red-500 hover:bg-red-500"
+            >
+              {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
+            </Badge>
+          )}
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-[240px] p-0">
+        <div className="p-4 bg-[#00a884] text-white">
+          <div className="flex justify-between items-center mb-2">
+            <SheetTitle className="font-medium">Admin Panel</SheetTitle>
+            <SheetClose asChild>
+              <Button variant="ghost" size="icon" className="text-white hover:bg-[#009874]">
+                <X className="h-5 w-5" />
+              </Button>
+            </SheetClose>
+          </div>
         </div>
-      </div>
-      <div className="px-4 py-2">
-        <div className="flex flex-col space-y-2">
-          {/* Existing menu items */}
-          <SheetClose asChild>
-            <Button
-              variant="ghost"
-              className="justify-start"
-              onClick={() => setFilter('all')}
-            >
-              All Users
-            </Button>
-          </SheetClose>
-          <SheetClose asChild>
-            <Button
-              variant="ghost"
-              className="justify-start"
-              onClick={() => setFilter('unread')}
-            >
-              Unread Messages
-              {totalUnreadMessages > 0 && (
-                <Badge variant="outline" className="ml-2 bg-[#00a884] text-white border-none">
-                  {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
-                </Badge>
-              )}
-            </Button>
-          </SheetClose>
-          <SheetClose asChild>
-            <Button
-              variant="ghost"
-              className="justify-start"
-              onClick={() => setFilter('ips')}
-            >
-              User IPs
-              {matchingIPs.length > 0 && (
-                <Badge variant="outline" className="ml-2 bg-red-500 text-white border-none">
-                  {matchingIPs.length}
-                </Badge>
-              )}
-            </Button>
-          </SheetClose>
+        <div className="px-4 py-2">
+          <div className="flex flex-col space-y-2">
+            {/* Existing menu items */}
+            <SheetClose asChild>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => setFilter('all')}
+              >
+                All Users
+              </Button>
+            </SheetClose>
+            <SheetClose asChild>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => setFilter('unread')}
+              >
+                Unread Messages
+                {totalUnreadMessages > 0 && (
+                  <Badge variant="outline" className="ml-2 bg-[#00a884] text-white border-none">
+                    {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
+                  </Badge>
+                )}
+              </Button>
+            </SheetClose>
+            <SheetClose asChild>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => setFilter('ips')}
+              >
+                User IPs
+                {matchingIPs.length > 0 && (
+                  <Badge variant="outline" className="ml-2 bg-red-500 text-white border-none">
+                    {matchingIPs.length}
+                  </Badge>
+                )}
+              </Button>
+            </SheetClose>
             <SheetClose asChild>
               <Button
                 variant="ghost"
@@ -576,54 +599,69 @@ const MobileMenu = () => (
                 📢 Broadcast Message
               </Button>
             </SheetClose>
-          
-          {/* Announcement buttons */}
-          <div className="border-t border-gray-200 my-2"></div>
-          <SheetClose asChild>
-            <Button
-              variant="ghost"
-              className="justify-start text-blue-600"
-              onClick={() => setAnnouncementDialog(true)}
-            >
-              📢 Create Announcement
-            </Button>
-          </SheetClose>
-          <SheetClose asChild>
-            <Button
-              variant="ghost"
-              className="justify-start text-purple-600"
-              onClick={() => setManageAnnouncementsDialog(true)}
-            >
-              Manage Announcements
-            </Button>
-          </SheetClose>
 
-          {/* Add User button */}
-          {userType === 'admin' && (
+            {/* Announcement buttons */}
+            <div className="border-t border-gray-200 my-2"></div>
             <SheetClose asChild>
               <Button
                 variant="ghost"
-                className="justify-start"
-                onClick={() => setDialogOpen(true)}
+                className="justify-start text-blue-600"
+                onClick={() => setAnnouncementDialog(true)}
               >
-                <UserPlus className="h-4 w-4 mr-2" /> Add New User
+                📢 Create Announcement
               </Button>
             </SheetClose>
-          )}
-          
-          <div className="border-t border-gray-200 my-2"></div>
-          <Button
-            variant="ghost"
-            className="justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-4 w-4 mr-2" /> Logout
-          </Button>
+            <SheetClose asChild>
+              <Button
+                variant="ghost"
+                className="justify-start text-purple-600"
+                onClick={() => setManageAnnouncementsDialog(true)}
+              >
+                Manage Announcements
+              </Button>
+            </SheetClose>
+
+            {/* Add User button */}
+            {userType === 'admin' && (
+              <SheetClose asChild>
+                <Button
+                  variant="ghost"
+                  className="justify-start"
+                  onClick={() => setDialogOpen(true)}
+                >
+                  <UserPlus className="h-4 w-4 mr-2" /> Add New User
+                </Button>
+              </SheetClose>
+            )}
+            {userType === 'admin' && (
+              <SheetClose asChild>
+                <Button
+                  variant="ghost"
+                  className="justify-start"
+                  onClick={() => setFilter('subadmins')}
+                >
+                  SubAdmins
+                  {subAdmins.length > 0 && (
+                    <Badge variant="outline" className="ml-2 bg-[#00a884] text-white border-none">
+                      {subAdmins.length}
+                    </Badge>
+                  )}
+                </Button>
+              </SheetClose>
+            )}
+            <div className="border-t border-gray-200 my-2"></div>
+            <Button
+              variant="ghost"
+              className="justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4 mr-2" /> Logout
+            </Button>
+          </div>
         </div>
-      </div>
-    </SheetContent>
-  </Sheet>
-);
+      </SheetContent>
+    </Sheet>
+  );
 
   const renderIPsView = () => (
     <div className="p-4">
@@ -708,6 +746,61 @@ const MobileMenu = () => (
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+
+  const renderSubAdminsView = () => (
+    <div className="p-4">
+      <div className="space-y-4">
+        <div>
+          <h3 className="hidden md:visible text-sm font-semibold text-slate-700 mb-3">SubAdmins Management</h3>
+          <div className="space-y-2">
+            {subAdmins.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">
+                No subadmins found
+              </div>
+            ) : (
+              subAdmins.map((subAdmin) => (
+                <div
+                  key={subAdmin.username}
+                  className="flex items-center justify-between p-3 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors"
+                  onClick={() => handleSubAdminSelect(subAdmin)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <Avatar className="h-10 w-10 bg-slate-200">
+                        <AvatarImage
+                          src={subAdmin.profilePicture || subAdmin.avatar}
+                          alt={`${subAdmin.username}'s profile picture`}
+                        />
+                        <AvatarFallback className="bg-purple-600 text-white">
+                          {subAdmin.username.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      {subAdmin.isOnline && (
+                        <span className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-green-500 ring-2 ring-white"></span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{subAdmin.username}</p>
+                      <p className="text-xs text-slate-500">
+                        {subAdmin.isOnline ? 'Online' : `Last seen: ${formatLastSeen(subAdmin.lastSeen)}`}
+                      </p>
+                      <p className="text-xs text-purple-600 font-medium">SubAdmin</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-slate-600">Click to edit</p>
+                    <p className="text-xs text-slate-500">
+                      Created: {new Date(subAdmin.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -814,39 +907,58 @@ const MobileMenu = () => (
           </Button>} */}
 
           <div className="flex space-x-2">
-    <Button
-      variant="outline"
-      size="sm"
-      className="bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
-      onClick={() => setAnnouncementDialog(true)}
-    >
-      📢 Announcement
-    </Button>
-    <Button
-      variant="outline"
-      size="sm"
-      className="bg-purple-600 text-white hover:bg-purple-700 border-purple-600"
-      onClick={() => setManageAnnouncementsDialog(true)}
-    >
-      Manage
-    </Button>
-    {userType === 'admin' && (
-      <Button
-        variant="default"
-        size="sm"
-        className="bg-[#00a884] hover:bg-[#009874]"
-        onClick={() => setDialogOpen(true)}
-      >
-        <UserPlus className="h-4 w-4 mr-1" /> Add User
-      </Button>
-    )}
-  </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
+              onClick={() => setAnnouncementDialog(true)}
+            >
+              📢 Announcement
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-purple-600 text-white hover:bg-purple-700 border-purple-600"
+              onClick={() => setManageAnnouncementsDialog(true)}
+            >
+              Manage
+            </Button>
+            {userType === 'admin' && (
+              <Button
+                variant={filter === 'subadmins' ? "default" : "outline"}
+                size="sm"
+                className={filter === 'subadmins' ? "bg-[#00a884] hover:bg-[#00a884]" : ""}
+                onClick={() => setFilter('subadmins')}
+              >
+                SubAdmins
+                {subAdmins.length > 0 && (
+                  <Badge variant="outline" className="ml-1 bg-white text-[#00a884] border-white">
+                    {subAdmins.length}
+                  </Badge>
+                )}
+              </Button>
+            )}
+            {userType === 'admin' && (
+              <Button
+                variant="default"
+                size="sm"
+                className="bg-[#00a884] hover:bg-[#009874]"
+                onClick={() => setDialogOpen(true)}
+              >
+                <UserPlus className="h-4 w-4 mr-1" /> Add User
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Mobile filters - simple text displays */}
         <div className="flex justify-between items-center mt-2 md:hidden">
           <div className="text-sm font-medium text-slate-600">
-            {filter === 'all' ? 'All Users' : filter === 'ips' ? 'User IP Addresses' : 'Unread Messages'}
+            {filter === 'all' ? 'All Users' :
+              filter === 'ips' ? 'User IP Addresses' :
+                filter === 'subadmins' ? 'SubAdmins' :
+                  filter === 'broadcast' ? 'Broadcast Message' :
+                    'Unread Messages'}
           </div>
           {filter === 'unread' && totalUnreadMessages > 0 && (
             <Badge variant="default" className="bg-[#00a884]">
@@ -865,6 +977,8 @@ const MobileMenu = () => (
         <ScrollArea className="h-[calc(100vh-140px)] md:h-[calc(100vh-220px)]">
           {filter === 'ips' ? (
             renderIPsView()
+          ) : filter === 'subadmins' ? (
+            renderSubAdminsView()
           ) : filter === 'broadcast' ? (
             // Broadcast view
             <div className="p-4">
@@ -1042,93 +1156,97 @@ const MobileMenu = () => (
           setNewUsername={setNewUsername}
           newPassword={newPassword}
           setNewPassword={setNewPassword}
+          isEditMode={isEditMode}
+          setIsEditMode={setIsEditMode}
+          userToEdit={userToEdit}
+          setUserToEdit={setUserToEdit}
           users={users}
 
         />
-      </Dialog> }
+      </Dialog>}
 
 
 
-/ Add these dialogs before the closing div
-{/* Create Announcement Dialog */}
-<Dialog open={announcementDialog} onOpenChange={setAnnouncementDialog}>
-  <DialogContent className="sm:max-w-md">
-    <DialogHeader>
-      <DialogTitle>Create Announcement</DialogTitle>
-      <DialogDescription>
-        Create a broadcast announcement for all users
-      </DialogDescription>
-    </DialogHeader>
-    <div className="space-y-4">
-      <textarea
-        placeholder="Enter your announcement message..."
-        value={announcementText}
-        onChange={(e) => setAnnouncementText(e.target.value)}
-        className="w-full h-32 p-3 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-[#00a884]"
-        maxLength={500}
-      />
-      <div className="text-sm text-gray-500 text-right">
-        {announcementText.length}/500 characters
-      </div>
-    </div>
-    <DialogFooter>
-      <Button variant="outline" onClick={() => setAnnouncementDialog(false)}>
-        Cancel
-      </Button>
-      <Button 
-        onClick={handleCreateAnnouncement}
-        className="bg-[#00a884] hover:bg-[#009874]"
-      >
-        📢 Broadcast
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
-
-{/* Manage Announcements Dialog */}
-<Dialog open={manageAnnouncementsDialog} onOpenChange={setManageAnnouncementsDialog}>
-  <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
-    <DialogHeader>
-      <DialogTitle>Manage Announcements</DialogTitle>
-      <DialogDescription>
-        View and delete existing announcements
-      </DialogDescription>
-    </DialogHeader>
-    <div className="space-y-4">
-      {announcements.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          No announcements found
-        </div>
-      ) : (
-        announcements.map((announcement) => (
-          <div key={announcement._id} className="border rounded-lg p-4 bg-gray-50">
-            <div className="flex justify-between items-start mb-2">
-              <div className="text-sm text-gray-600">
-                By: {announcement.createdBy} • {new Date(announcement.createdAt).toLocaleString()}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={() => handleDeleteAnnouncement(announcement._id)}
-              >
-                Delete
-              </Button>
-            </div>
-            <div className="text-gray-800 whitespace-pre-wrap">
-              {announcement.text}
+      / Add these dialogs before the closing div
+      {/* Create Announcement Dialog */}
+      <Dialog open={announcementDialog} onOpenChange={setAnnouncementDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create Announcement</DialogTitle>
+            <DialogDescription>
+              Create a broadcast announcement for all users
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <textarea
+              placeholder="Enter your announcement message..."
+              value={announcementText}
+              onChange={(e) => setAnnouncementText(e.target.value)}
+              className="w-full h-32 p-3 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-[#00a884]"
+              maxLength={500}
+            />
+            <div className="text-sm text-gray-500 text-right">
+              {announcementText.length}/500 characters
             </div>
           </div>
-        ))
-      )}
-    </div>
-    <DialogFooter>
-      <Button variant="outline" onClick={() => setManageAnnouncementsDialog(false)}>
-        Close
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAnnouncementDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateAnnouncement}
+              className="bg-[#00a884] hover:bg-[#009874]"
+            >
+              📢 Broadcast
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Announcements Dialog */}
+      <Dialog open={manageAnnouncementsDialog} onOpenChange={setManageAnnouncementsDialog}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Manage Announcements</DialogTitle>
+            <DialogDescription>
+              View and delete existing announcements
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {announcements.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No announcements found
+              </div>
+            ) : (
+              announcements.map((announcement) => (
+                <div key={announcement._id} className="border rounded-lg p-4 bg-gray-50">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="text-sm text-gray-600">
+                      By: {announcement.createdBy} • {new Date(announcement.createdAt).toLocaleString()}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                      onClick={() => handleDeleteAnnouncement(announcement._id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                  <div className="text-gray-800 whitespace-pre-wrap">
+                    {announcement.text}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManageAnnouncementsDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
 
 
