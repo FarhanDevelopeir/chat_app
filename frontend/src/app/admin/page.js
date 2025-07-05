@@ -325,7 +325,7 @@ export default function AdminChatPage() {
               dialogOpen={dialogOpen}
               setDialogOpen={setDialogOpen}
               userToEdit={userToEdit}
-              isEditMode={isEditMode}
+              setUserToEdit={setUserToEdit}
               newUsername={newUsername}
               handleProfileUpdate={handleProfileUpdate}
               newPassword={newPassword}
