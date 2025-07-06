@@ -7,7 +7,7 @@ export default function ReplyPreview({ replyingTo, onCancel }) {
   if (!replyingTo) return null;
 
   return (
-    <div className="z-50 px-4 py-2 bg-gray-100 border-l-4 border-blue-500 mx-4 rounded fixed w-full bottom-12 md:bottom-0 right-0 md:static md:w-auto">
+    <div className="z-40 px-4 py-2 bg-gray-100 border-l-4 border-blue-500 mx-4 rounded fixed w-full bottom-12 md:bottom-0 right-0 md:static md:w-auto">
       <div className="border-l-4 border-blue-500 rounded pl-3 md:p-0 md:border-0 flex justify-between items-start">
         <div className="flex-1">
           <p className="text-xs text-blue-600 font-medium">

@@ -58,9 +58,12 @@ export default function UserChatPage() {
       // **NEW: Listen for force reload (only for the specific user)**
       socket.on('user:forceReload', (data) => {
         if (data.targetUsername === username) {
+
           console.log("Your password has been updated by admin.");
 
           toast.warning('⚠️ Your password has been updated by admin. Page will reload in 3 seconds...');
+          localStorage.removeItem('chat_username');
+          localStorage.removeItem('chat_device_id');
           setTimeout(() => {
             window.location.reload();
           }, 3000);
@@ -185,11 +188,7 @@ export default function UserChatPage() {
         setAdmin(userData);
       });
 
-      socket.on('user:PasswordChangedError', (error) => {
-        setErrorMessage(error);
-        toast.error(error)
-        handleLogout()
-      });
+     
 
       // Request initial data
       socket.emit('user:getUnreadCounts', { username });
@@ -210,7 +209,7 @@ export default function UserChatPage() {
         socket.off('user:profileUpdated');
         socket.off('user:loginSuccess');
         socket.off('admin:profiledata');
-        socket.off('user:PasswordChangedError');
+        
       };
     }
   }, [socket, isLoggedIn]);
@@ -255,6 +254,13 @@ export default function UserChatPage() {
       setSubAdminOnline(status.isOnline);
     });
 
+    socket.on('user:PasswordChangedError', (error) => {
+        setErrorMessage(error);
+        toast.error(error)
+        handleLogout()
+        setLoading(false);
+      });
+
     socket.on('user:loginSuccess', ({ user }) => {
       console.log('Login success:', user);
       setIsLoggedIn(true);
@@ -262,6 +268,7 @@ export default function UserChatPage() {
       setLoading(false);
       setCurrentUser(user);
     });
+
 
     const username = localStorage.getItem('chat_username');
     const deviceId = localStorage.getItem('chat_device_id');
@@ -284,6 +291,7 @@ export default function UserChatPage() {
       socket.off('subadmin:status');
       socket.off('user:loginSuccess');
       socket.off('message:receive');
+      socket.off('user:PasswordChangedError');
     };
   }, [socket]);
 
@@ -309,6 +317,7 @@ export default function UserChatPage() {
 
   // Function to handle logout
   const handleLogout = () => {
+    localStorage.removeItem('chat_device_id');
     localStorage.removeItem('chat_username');
     setIsLoggedIn(false);
     socket.emit('user:logout'); // Notify server about logout

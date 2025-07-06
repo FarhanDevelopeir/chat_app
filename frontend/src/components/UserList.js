@@ -897,31 +897,22 @@ export default function UsersList({
             </Button>
           </div>
 
-          {/* {userType === 'admin' && <Button
-            variant="default"
-            size="sm"
-            className="bg-[#00a884] hover:bg-[#009874]"
-            onClick={() => setDialogOpen(true)}
-          >
-            <UserPlus className="h-4 w-4 mr-1" /> Add User
-          </Button>} */}
+          
 
           <div className="flex space-x-2">
+            
             <Button
               variant="outline"
               size="sm"
-              className="bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
-              onClick={() => setAnnouncementDialog(true)}
+              // className="bg-purple-600 text-white hover:bg-purple-700 border-purple-600"
+              className={filter === 'announcement' ? "bg-[#00a884] hover:bg-[#00a884] ml-2" : " ml-2"}
+              onClick={() => {
+                setFilter('announcement');
+                setManageAnnouncementsDialog(true)
+              }}
+
             >
-              📢 Announcement
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-purple-600 text-white hover:bg-purple-700 border-purple-600"
-              onClick={() => setManageAnnouncementsDialog(true)}
-            >
-              Manage
+              📢 Announcements
             </Button>
             {userType === 'admin' && (
               <Button
@@ -943,7 +934,11 @@ export default function UsersList({
                 variant="default"
                 size="sm"
                 className="bg-[#00a884] hover:bg-[#009874]"
-                onClick={() => setDialogOpen(true)}
+                // onClick={() => setDialogOpen(true)}
+                onClick={() => {
+                  setDialogOpen(true);
+                  setUserToEdit(false);
+                }}
               >
                 <UserPlus className="h-4 w-4 mr-1" /> Add User
               </Button>
@@ -1167,7 +1162,7 @@ export default function UsersList({
 
 
 
-      / Add these dialogs before the closing div
+      {/* / Add these dialogs before the closing div */}
       {/* Create Announcement Dialog */}
       <Dialog open={announcementDialog} onOpenChange={setAnnouncementDialog}>
         <DialogContent className="sm:max-w-md">
@@ -1240,6 +1235,15 @@ export default function UsersList({
               ))
             )}
           </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-green-600 text-white hover:bg-green-700 border-green-600"
+            onClick={() => setAnnouncementDialog(true)}
+          >
+            📢 Create New Announcement
+          </Button>
           <DialogFooter>
             <Button variant="outline" onClick={() => setManageAnnouncementsDialog(false)}>
               Close

@@ -73,6 +73,7 @@ const CreateUser = ({
                     setShowDeleteDialog(false);
                     resetForm();
                     setDialogOpen(false);
+                    socket.emit('admin:getSubAdmins');
                 } else {
                     toast({
                         title: "Error",
@@ -266,6 +267,7 @@ const CreateUser = ({
                         });
                         resetForm();
                         setDialogOpen(false);
+                        socket.emit('admin:getSubAdmins');
                     } else {
                         toast({
                             title: "Error",

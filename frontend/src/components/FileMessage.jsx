@@ -154,11 +154,11 @@ export default function FileMessage({ file }) {
   };
 
   const handleZoomIn = () => {
-    setZoom(prev => Math.min(prev + 0.5, 3));
+    setZoom(prev => Math.min(prev + 0.2, 3));
   };
 
   const handleZoomOut = () => {
-    setZoom(prev => Math.max(prev - 0.5, 0.5));
+    setZoom(prev => Math.max(prev - 0.2, 0.5));
     // Reset position when zooming out to 1x or less
     if (zoom <= 1) {
       setPosition({ x: 0, y: 0 });
@@ -278,9 +278,9 @@ export default function FileMessage({ file }) {
       {/* Image Preview Modal */}
       {file.type === 'image' && (
         <Dialog open={showPreview} onOpenChange={handlePreviewClose}>
-          <DialogContent className="w-full h-full flex items-center justify-center  relative">
+          <DialogContent className="w-full h-full flex items-center justify-center  relative z-[100]">
             {/* Header Controls */}
-            <div className="absolute top-4 md:left-4 md:right-4 z-[2000] md:flex md:items-center md:justify-between">
+            <div className="absolute top-4 md:left-4 md:right-4  z-[110] md:flex md:items-center md:justify-between">
               <div className="flex items-center space-x-2 bg-black/50 rounded-lg px-3 py-2 mb-2 md:mb-0">
                 <span className="text-white text-sm font-medium truncate max-w-[200px] sm:max-w-[400px]">
                   {file.name}
@@ -350,7 +350,7 @@ export default function FileMessage({ file }) {
                   src={file.url}
                   alt={file.name}
                   className={`max-w-full max-h-full object-contain transition-transform duration-200 select-none ${
-                    zoom > 1 ? (isDragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default'
+                    zoom > 0.2 ? (isDragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default'
                   }`}
                   style={{
                     transform: `translate(${position.x}px, ${position.y}px) scale(${zoom}) rotate(${rotation}deg)`,
