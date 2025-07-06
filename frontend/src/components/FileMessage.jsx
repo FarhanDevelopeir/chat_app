@@ -276,119 +276,121 @@ export default function FileMessage({ file }) {
       </div>
 
       {/* Image Preview Modal */}
-      {file.type === 'image' && (
-        <Dialog open={showPreview} onOpenChange={handlePreviewClose}>
-          <DialogContent className="w-full h-full flex items-center justify-center  relative z-[100]">
-            {/* Header Controls */}
-            <div className="absolute top-4 md:left-4 md:right-4  z-[110] md:flex md:items-center md:justify-between">
-              <div className="flex items-center space-x-2 bg-black/50 rounded-lg px-3 py-2 mb-2 md:mb-0">
-                <span className="text-white text-sm font-medium truncate max-w-[200px] sm:max-w-[400px]">
-                  {file.name}
-                </span>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                {/* Zoom Controls */}
-                <div className="flex items-center space-x-1 bg-black/50 rounded-lg px-2 py-1">
-                  <button
-                    onClick={handleZoomOut}
-                    className="p-1 text-white hover:bg-white/20 rounded transition-colors"
-                    disabled={zoom <= 0.5}
-                  >
-                    <ZoomOut className="h-4 w-4" />
-                  </button>
-                  <span className="text-white text-xs px-2 min-w-[3rem] text-center">
-                    {Math.round(zoom * 100)}%
-                  </span>
-                  <button
-                    onClick={handleZoomIn}
-                    className="p-1 text-white hover:bg-white/20 rounded transition-colors"
-                    disabled={zoom >= 3}
-                  >
-                    <ZoomIn className="h-4 w-4" />
-                  </button>
-                </div>
-
-                {/* Rotate Button */}
-                <button
-                  onClick={handleRotate}
-                  className="p-2 bg-black/50 text-white hover:bg-white/20 rounded-lg transition-colors"
-                >
-                  <RotateCw className="h-4 w-4" />
-                </button>
-
-                {/* Download Button */}
-                <button
-                  onClick={handleDownload}
-                  disabled={downloading}
-                  className="p-2 bg-black/50 text-white hover:bg-white/20 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  <Download className="h-4 w-4" />
-                </button>
-
-                {/* Close Button */}
-                <button
-                  onClick={handlePreviewClose}
-                  className="p-2 bg-black/50 text-white hover:bg-white/20 rounded-lg transition-colors"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Image Container */}
-            <div 
-              ref={containerRef}
-              className="w-full h-full flex items-center justify-center sm:p-20 overflow-hidden"
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
+     {/* Image Preview Modal */}
+{file.type === 'image' && (
+  <Dialog open={showPreview} onOpenChange={handlePreviewClose}>
+    <DialogContent className="w-full h-full flex items-center justify-center md:flex-col relative z-[100] p-0">
+      {/* Header Controls */}
+      <div className="absolute top-4 left-4 right-4 z-[110] md:flex items-center justify-between  ">
+        <div className="flex items-center space-x-2 bg-black/50 rounded-lg px-3 py-2">
+          <span className="text-white text-sm font-medium truncate max-w-[200px] sm:max-w-[400px]">
+            {file.name}
+          </span>
+        </div>
+        
+        <div className="flex items-center space-x-2 mt-2 md:mt-0">
+          {/* Zoom Controls */}
+          <div className="flex items-center space-x-1 bg-black/50 rounded-lg px-2 py-1">
+            <button
+              onClick={handleZoomOut}
+              className="p-1 text-white hover:bg-white/20 rounded transition-colors"
+              disabled={zoom <= 0.5}
             >
-              <div className="relative max-w-full max-h-full">
-                <img
-                  ref={imageRef}
-                  src={file.url}
-                  alt={file.name}
-                  className={`max-w-full max-h-full object-contain transition-transform duration-200 select-none ${
-                    zoom > 0.2 ? (isDragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default'
-                  }`}
-                  style={{
-                    transform: `translate(${position.x}px, ${position.y}px) scale(${zoom}) rotate(${rotation}deg)`,
-                    transformOrigin: 'center'
-                  }}
-                  draggable={false}
-                  onMouseDown={handleMouseDown}
-                  onTouchStart={handleTouchStart}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={handleTouchEnd}
-                />
-              </div>
-            </div>
+              <ZoomOut className="h-4 w-4" />
+            </button>
+            <span className="text-white text-xs px-2 min-w-[3rem] text-center">
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              onClick={handleZoomIn}
+              className="p-1 text-white hover:bg-white/20 rounded transition-colors"
+              disabled={zoom >= 3}
+            >
+              <ZoomIn className="h-4 w-4" />
+            </button>
+          </div>
 
-            {/* Bottom Info */}
-            <div className="absolute bottom-4 left-4 right-4 z-20">
-              <div className="flex items-center justify-between">
-                <div className="bg-black/50 rounded-lg px-3 py-2">
-                  <p className="text-white text-xs">
-                    {(file.size / 1024).toFixed(1)} KB
-                  </p>
-                </div>
-                
-                {(zoom !== 1 || rotation !== 0 || position.x !== 0 || position.y !== 0) && (
-                  <button
-                    onClick={resetControls}
-                    className="bg-black/50 text-white hover:bg-white/20 rounded-lg px-3 py-2 text-xs transition-colors"
-                  >
-                    Reset View
-                  </button>
-                )}
-              </div>
-            </div>
+          {/* Rotate Button */}
+          <button
+            onClick={handleRotate}
+            className="p-2 bg-black/50 text-white hover:bg-white/20 rounded-lg transition-colors"
+          >
+            <RotateCw className="h-4 w-4" />
+          </button>
 
+          {/* Download Button */}
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="p-2 bg-black/50 text-white hover:bg-white/20 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <Download className="h-4 w-4" />
+          </button>
+
+          {/* Close Button */}
+          <button
+            onClick={handlePreviewClose}
+            className="p-2 bg-black/50 text-white hover:bg-white/20 rounded-lg transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Image Container */}
+      <div 
+        ref={containerRef}
+        className="w-full h-full flex items-center justify-center pt-16 pb-16 px-4 overflow-hidden"
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        <div className="relative w-full h-full flex items-center justify-center">
+          <img
+            ref={imageRef}
+            src={file.url}
+            alt={file.name}
+            className={`w-auto h-auto transition-transform duration-200 select-none ${
+              zoom > 0.2 ? (isDragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default'
+            }`}
+            style={{
+              transform: `translate(${position.x}px, ${position.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+              transformOrigin: 'center',
+              maxWidth: '100%',
+              maxHeight: '100%',
+              objectFit: 'contain'
+            }}
+            draggable={false}
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          />
+        </div>
+      </div>
+
+      {/* Bottom Info */}
+      <div className="absolute bottom-4 left-4 right-4 z-20">
+        <div className="flex items-center justify-between">
+          <div className="bg-black/50 rounded-lg px-3 py-2">
+            <p className="text-white text-xs">
+              {(file.size / 1024).toFixed(1)} KB
+            </p>
+          </div>
           
-          </DialogContent>
-        </Dialog>
-      )}
+          {(zoom !== 1 || rotation !== 0 || position.x !== 0 || position.y !== 0) && (
+            <button
+              onClick={resetControls}
+              className="bg-black/50 text-white hover:bg-white/20 rounded-lg px-3 py-2 text-xs transition-colors"
+            >
+              Reset View
+            </button>
+          )}
+        </div>
+      </div>
+    </DialogContent>
+  </Dialog>
+)}
     </>
   );
 }
