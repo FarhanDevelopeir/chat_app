@@ -602,7 +602,7 @@ export default function UsersList({
 
             {/* Announcement buttons */}
             <div className="border-t border-gray-200 my-2"></div>
-            <SheetClose asChild>
+            {userType === 'admin' && <SheetClose asChild>
               <Button
                 variant="ghost"
                 className="justify-start text-blue-600"
@@ -610,8 +610,8 @@ export default function UsersList({
               >
                 📢 Create Announcement
               </Button>
-            </SheetClose>
-            <SheetClose asChild>
+            </SheetClose>}
+            {userType === 'admin' && <SheetClose asChild>
               <Button
                 variant="ghost"
                 className="justify-start text-purple-600"
@@ -619,7 +619,7 @@ export default function UsersList({
               >
                 Manage Announcements
               </Button>
-            </SheetClose>
+            </SheetClose>}
 
             {/* Add User button */}
             {userType === 'admin' && (
@@ -897,11 +897,11 @@ export default function UsersList({
             </Button>
           </div>
 
-          
+
 
           <div className="flex space-x-2">
-            
-            <Button
+
+            {userType === 'admin' && <Button
               variant="outline"
               size="sm"
               // className="bg-purple-600 text-white hover:bg-purple-700 border-purple-600"
@@ -913,7 +913,7 @@ export default function UsersList({
 
             >
               📢 Announcements
-            </Button>
+            </Button>}
             {userType === 'admin' && (
               <Button
                 variant={filter === 'subadmins' ? "default" : "outline"}
