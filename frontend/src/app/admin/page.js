@@ -2,7 +2,7 @@
 // implement resposnive design for the chat interface and user list
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useSocket } from '@/context/SocketContext';
 import UsersList from '../../components/UserList';
 import ChatInterface from '../../components/ChatInterface';
@@ -25,6 +25,7 @@ export default function AdminChatPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { socket } = useSocket();
   const [isEditMode, setIsEditMode] = useState(false);
+  const [adminOnline, setAdminOnline] = useState(false);
   const [userToEdit, setUserToEdit] = useState(null);
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -37,9 +38,17 @@ export default function AdminChatPage() {
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [userType, setUserType] = useState(null);
 
+  console.log('selectedUser', selectedUser)
+
   // Updated useEffect for socket listeners
+
   useEffect(() => {
     if (!socket) return;
+
+
+    socket.on('admin:status', (status) => {
+      setAdminOnline(status.isOnline);
+    });
 
     const handleGroupsListUpdated = (updatedGroups) => {
       // Filter groups where current user is a member
@@ -53,7 +62,7 @@ export default function AdminChatPage() {
     };
 
 
-   
+
 
     const handleGroupMessage = (message) => {
       // Fetch fresh groups list to ensure proper sorting
@@ -69,6 +78,7 @@ export default function AdminChatPage() {
     return () => {
       socket.off('groups:listUpdated', handleGroupsListUpdated);
       socket.off('group:messageReceive', handleGroupMessage);
+      socket.off('admin:status');
     };
   }, [socket]);
 
@@ -186,6 +196,7 @@ export default function AdminChatPage() {
       });
 
       socket.on('admin:profiledata', (userData) => {
+        console.log('admin:profiledata', userData)
         if (userType === 'admin') {
           setCurrentUser(userData);
         }
@@ -198,6 +209,7 @@ export default function AdminChatPage() {
       });
 
       socket.on('subadmin:profiledata', (userData) => {
+        console.log('subadmin:profiledata', userData)
         if (userType === 'subadmin') {
           setCurrentUser(userData);
         }
@@ -244,7 +256,7 @@ export default function AdminChatPage() {
     }));
   };
 
- 
+
 
   const handleLogout = () => {
     localStorage.removeItem('adminLoggedIn');
@@ -256,7 +268,7 @@ export default function AdminChatPage() {
       socket.emit('admin:logout');
     } else if (userType === 'subadmin') {
       const storedUsername = localStorage.getItem('subAdminUsername');
-      socket.emit('subadmin:logout', storedUsername );
+      socket.emit('subadmin:logout', storedUsername);
       localStorage.removeItem('subAdminUsername');
     }
   };
@@ -332,6 +344,7 @@ export default function AdminChatPage() {
               setNewUsername={setNewUsername}
               setNewPassword={setNewPassword}
               handleLogout={handleLogout}
+              adminOnline={adminOnline}
               userType={userType}
             />
           ) : (

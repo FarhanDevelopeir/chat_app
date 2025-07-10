@@ -61,6 +61,7 @@ export default function UsersList({
   setNewUsername,
   setNewPassword,
   handleLogout,
+  adminOnline,
   userType
 }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,6 +81,11 @@ export default function UsersList({
   const [announcements, setAnnouncements] = useState([]);
   const [subAdmins, setSubAdmins] = useState([]);
   const [manageAnnouncementsDialog, setManageAnnouncementsDialog] = useState(false);
+
+
+  console.log('adminOnline in admin', adminOnline)
+
+   console.log('users in admin', users)
 
   // Add these useEffect listeners
   useEffect(() => {
@@ -1025,9 +1031,15 @@ export default function UsersList({
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline">
                         <div className="flex items-center gap-2">
-                          <p className={`text-sm font-medium truncate ${user.unreadCount > 0 ? 'text-slate-900 font-semibold' : 'text-slate-900'
+                          <p className={`text-sm flex font-medium truncate ${user.unreadCount > 0 ? 'text-slate-900 font-semibold' : 'text-slate-900'
                             }`}>
-                            {user.username}
+                            {user.username} {user?.isSubAdmin || user.username == 'admin' ? 
+                            <img 
+                        src="/blue-tick.png"
+                        alt="Blue Tick"
+                        className="ml-2 w-4 h-4 md:w-5 md:h-5"
+                      />
+                            : '' } 
                           </p>
                           {user?.isPinned && (
                             <Pin className="h-3 w-3 text-blue-500 fill-blue-500" />
@@ -1122,7 +1134,7 @@ export default function UsersList({
                             return displayText.length > 20 ? displayText.substring(0, 20) + '...' : displayText;
                           }
 
-                          if (user.isOnline) {
+                          if (user.isOnline || (user.username === 'admin' && adminOnline)) {
                             return (
                               <span className="flex items-center gap-1 text-green-600">
                                 <Circle className="h-2 w-2 fill-green-500" /> Online

@@ -132,7 +132,7 @@ export default function ChatHeader({
         </div>
       </div>
 
-      {(isAdmin || isSubAdmin) && !isGroupChat && !isBroadcast && <div className="text-sm text-gray-500 mt-2">
+      {(isAdmin || isSubAdmin) && !isGroupChat && !isBroadcast && !selectedUser.isSubAdmin && <div className="text-sm text-gray-500 mt-2">
         IP: {(isAdmin || isSubAdmin) ? selectedUser?.ipAddress || "Not Found" : ""}
       </div>}
 
@@ -146,7 +146,7 @@ export default function ChatHeader({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {isAdmin && selectedUser && !isGroupChat && (
+              {isAdmin && selectedUser && !selectedUser.isSubAdmin && !isGroupChat && (
                 <DropdownMenuItem onClick={onEditUser}>
                   <Edit className="h-4 w-4 mr-2" />
                   Edit User
@@ -173,7 +173,7 @@ export default function ChatHeader({
         <Search className="h-4 w-4" />
       </Button>
 
-        {isAdmin && selectedUser && !isGroupChat && !isBroadcast && (
+        {isAdmin && selectedUser && !selectedUser.isSubAdmin && !isGroupChat && !isBroadcast && (
           <Button
             variant="outline"
             size="sm"
