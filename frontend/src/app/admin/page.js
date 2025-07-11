@@ -46,9 +46,7 @@ export default function AdminChatPage() {
     if (!socket) return;
 
 
-    socket.on('admin:status', (status) => {
-      setAdminOnline(status.isOnline);
-    });
+
 
     const handleGroupsListUpdated = (updatedGroups) => {
       // Filter groups where current user is a member
@@ -78,7 +76,7 @@ export default function AdminChatPage() {
     return () => {
       socket.off('groups:listUpdated', handleGroupsListUpdated);
       socket.off('group:messageReceive', handleGroupMessage);
-      socket.off('admin:status');
+
     };
   }, [socket]);
 
@@ -138,12 +136,16 @@ export default function AdminChatPage() {
       setUsers(userList);
     };
 
+    socket.on('admin:status', (status) => {
+      setAdminOnline(status.isOnline)
+    });
     socket.on('admin:userList', handleUserList);
     socket.on('subadmin:userList', handleSubAdminUserList);
 
     return () => {
       socket.off('admin:userList', handleUserList);
       socket.off('subadmin:userList', handleSubAdminUserList);
+      socket.off('admin:status');
     };
   }, [socket]);
 

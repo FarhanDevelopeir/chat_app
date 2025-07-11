@@ -1134,7 +1134,7 @@ export default function UsersList({
                             return displayText.length > 20 ? displayText.substring(0, 20) + '...' : displayText;
                           }
 
-                          if (user.isOnline || (user.username === 'admin' && adminOnline)) {
+                          if (user.isOnline) {
                             return (
                               <span className="flex items-center gap-1 text-green-600">
                                 <Circle className="h-2 w-2 fill-green-500" /> Online
