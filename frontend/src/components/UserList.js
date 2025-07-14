@@ -1096,27 +1096,13 @@ export default function UsersList({
                       </div>
 
                       {/* Rest of your existing message preview code remains the same */}
-                      <p
-                        title={(() => {
-                          const latestMsg = latestMessages['admin'] || latestMessages[user.username];
+                      
+                      <p className={`text-xs truncate pr-2 max-w-[150px] ${user.unreadCount > 0 ? 'text-slate-700 font-medium' : 'text-slate-500'
+                          }`}>
+                        {(() => { 
+                          const latestMsg =  latestMessages[user.username] || latestMessages['admin'];
                           if (latestMsg) {
-                            const prefix = latestMsg.sender === 'admin' ? 'You: ' : '';
-                            const content = latestMsg.content || '';
-
-                            if (content.includes("Document:")) return prefix + '📎 File';
-                            if (content.includes("Image:")) return prefix + '🖼️ Image';
-                            if (content.includes("Voice:")) return prefix + '🎵 Audio';
-                            return prefix + content;
-                          }
-                          return user.isOnline ? 'Online' : `Last seen: ${formatLastSeen(user.lastSeen)}`;
-                        })()}
-                        className={`text-xs truncate pr-2 max-w-[150px] ${user.unreadCount > 0 ? 'text-slate-700 font-medium' : 'text-slate-500'
-                          }`}
-                      >
-                        {(() => {
-                          const latestMsg = latestMessages['admin'] || latestMessages[user.username];
-                          if (latestMsg) {
-                            const prefix = latestMsg.sender === 'admin' ? 'You: ' : '';
+                            const prefix = (latestMsg.sender === 'admin' || latestMsg.sender === currentUser?.username ) ? 'You: ' : '';
                             const content = latestMsg.content || '';
 
                             let messageText = '';
