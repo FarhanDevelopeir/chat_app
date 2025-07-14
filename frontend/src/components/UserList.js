@@ -1100,7 +1100,7 @@ export default function UsersList({
                       <p className={`text-xs truncate pr-2 max-w-[150px] ${user.unreadCount > 0 ? 'text-slate-700 font-medium' : 'text-slate-500'
                           }`}>
                         {(() => { 
-                          const latestMsg =  latestMessages[user.username] || latestMessages['admin'];
+                          const latestMsg =  latestMessages[user.username] ||  (user?.username === 'admin' ? latestMessages['admin'] : null);;
                           if (latestMsg) {
                             const prefix = (latestMsg.sender === 'admin' || latestMsg.sender === currentUser?.username ) ? 'You: ' : '';
                             const content = latestMsg.content || '';
